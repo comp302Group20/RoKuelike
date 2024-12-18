@@ -1,7 +1,0 @@
-package Domain;
-
-public class HallObj implements iOccupier{
-
-    private boolean containsRune;
-
-}

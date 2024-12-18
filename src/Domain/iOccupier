@@ -1,6 +1,0 @@
-package Domain;
-
-public Interface iOccupier(){
-
-    void place(Square square);
-}

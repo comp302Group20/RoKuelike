@@ -1,8 +1,0 @@
-package Exceptions;
-
-public class ObjectCantBePlacedException{
-
-    public ObjectCantBePlacedException(){
-        System.out.println("The Object Can't be Placed Here!")
-    }    
-}
