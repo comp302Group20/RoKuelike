@@ -2,13 +2,14 @@ package UI;
 
 import Controller.BuildModeController;
 import Domain.Hall;
+import Utils.AssetPaths;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.image.BufferedImage;
+import java.net.URL;
 
 public class RokueLikeMainMenu extends JFrame {
 
@@ -23,8 +24,8 @@ public class RokueLikeMainMenu extends JFrame {
         setSize(1280, 720);
         setLocationRelativeTo(null);
 
-        // Load a background image (adjust path if needed)
-        ImageIcon backgroundIcon = new ImageIcon("res/rokue-like-assets/mainmenu.png");
+        // Load background image using resource path
+        ImageIcon backgroundIcon = loadImageIcon(AssetPaths.MAIN_MENU_BACKGROUND);
         Image backgroundImage = backgroundIcon.getImage();
 
         // Create the background panel
@@ -32,31 +33,25 @@ public class RokueLikeMainMenu extends JFrame {
         setContentPane(backgroundPanel);
 
         // Add title image
-        ImageIcon titleIcon = new ImageIcon("res/rokue-like-assets/title2.png");
+        ImageIcon titleIcon = loadImageIcon(AssetPaths.TITLE_IMAGE);
         Image titleImage = titleIcon.getImage();
         titleLabel = new JLabel(new ImageIcon(titleImage));
 
         // Buttons
-        startGameButton = createButton("res/rokue-like-assets/newgamebutton.png");
-        helpButton = createButton("res/rokue-like-assets/helpbutton.png");
-        exitButton = createButton("res/rokue-like-assets/exitbutton.png");
+        startGameButton = createButton(AssetPaths.NEWGAME_BUTTON); // Update with actual button image paths
+        helpButton = createButton(AssetPaths.HELP_BUTTON);      // Update with actual button image paths
+        exitButton = createButton(AssetPaths.EXIT_BUTTON);      // Update with actual button image paths
 
         // Add button logic
-        startGameButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-                Hall earthHall = new Hall("Earth Hall", 8, 8, 6);
-                new BuildModeController(earthHall);
-            }
+        startGameButton.addActionListener(e -> {
+            dispose();
+            Hall earthHall = new Hall("Earth Hall", 8, 8, 6);
+            new BuildModeController(earthHall);
         });
 
-        helpButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                HelpDialog helpDialog = new HelpDialog(RokueLikeMainMenu.this);
-                helpDialog.setVisible(true);
-            }
+        helpButton.addActionListener(e -> {
+            HelpDialog helpDialog = new HelpDialog(RokueLikeMainMenu.this);
+            helpDialog.setVisible(true);
         });
 
         exitButton.addActionListener(e -> System.exit(0));
@@ -78,10 +73,35 @@ public class RokueLikeMainMenu extends JFrame {
         resizeComponents(); // Initial positioning
     }
 
+    private ImageIcon loadImageIcon(String resourcePath) {
+        try {
+            URL resourceUrl = getClass().getClassLoader().getResource(resourcePath.substring(1));
+            if (resourceUrl == null) {
+                System.err.println("Could not find resource at: " + resourcePath);
+                return createFallbackIcon();
+            }
+            return new ImageIcon(resourceUrl);
+        } catch (Exception e) {
+            System.err.println("Error loading image from " + resourcePath + ": " + e.getMessage());
+            return createFallbackIcon();
+        }
+    }
+
+    private ImageIcon createFallbackIcon() {
+        // Create a simple colored rectangle as fallback
+        BufferedImage fallback = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = fallback.createGraphics();
+        g2d.setColor(Color.GRAY);
+        g2d.fillRect(0, 0, 100, 100);
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(0, 0, 99, 99);
+        g2d.dispose();
+        return new ImageIcon(fallback);
+    }
+
     private JButton createButton(String imagePath) {
-        ImageIcon icon = new ImageIcon(imagePath);
-        Image image = icon.getImage();
-        JButton button = new JButton(new ImageIcon(image));
+        ImageIcon icon = loadImageIcon(imagePath);
+        JButton button = new JButton(icon);
         styleButton(button);
         return button;
     }
@@ -100,7 +120,7 @@ public class RokueLikeMainMenu extends JFrame {
         int titleWidth = frameWidth / 3;
         int titleHeight = titleWidth / 3;
         titleLabel.setBounds((frameWidth - titleWidth) / 2, frameHeight / 10, titleWidth, titleHeight);
-        titleLabel.setIcon(new ImageIcon(((ImageIcon) titleLabel.getIcon()).getImage().getScaledInstance(titleWidth, titleHeight, Image.SCALE_SMOOTH)));
+        scaleImageIcon(titleLabel, titleWidth, titleHeight);
 
         // Scale and position buttons
         int buttonWidth = frameWidth / 8;
@@ -114,8 +134,27 @@ public class RokueLikeMainMenu extends JFrame {
         helpButton.setBounds(buttonX, buttonYStart + buttonSpacing, buttonWidth, buttonHeight);
         exitButton.setBounds(buttonX, buttonYStart + 2 * buttonSpacing, buttonWidth, buttonHeight);
 
+        // Scale button images
         for (JButton button : new JButton[]{startGameButton, helpButton, exitButton}) {
-            button.setIcon(new ImageIcon(((ImageIcon) button.getIcon()).getImage().getScaledInstance(buttonWidth, buttonHeight, Image.SCALE_SMOOTH)));
+            scaleImageIcon(button, buttonWidth, buttonHeight);
+        }
+    }
+
+    private void scaleImageIcon(JComponent component, int width, int height) {
+        if (component instanceof JLabel) {
+            JLabel label = (JLabel) component;
+            if (label.getIcon() != null) {
+                Image scaledImage = ((ImageIcon) label.getIcon()).getImage()
+                        .getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                label.setIcon(new ImageIcon(scaledImage));
+            }
+        } else if (component instanceof JButton) {
+            JButton button = (JButton) component;
+            if (button.getIcon() != null) {
+                Image scaledImage = ((ImageIcon) button.getIcon()).getImage()
+                        .getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                button.setIcon(new ImageIcon(scaledImage));
+            }
         }
     }
 

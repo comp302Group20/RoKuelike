@@ -15,7 +15,7 @@ public class Hero {
         this.x = startX;
         this.y = startY;
         try {
-            heroImage = new ImageIcon(getClass().getResource("/rokue-like-assets/player.png")).getImage();
+            heroImage = new ImageIcon(getClass().getResource("/Assets/player.png")).getImage();
         } catch (Exception e) {
             System.out.println("Hero image not found!");
         }
