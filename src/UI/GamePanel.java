@@ -354,13 +354,14 @@ public class GamePanel extends JPanel {
     }
 
     private void spawnMonster() {
-        // Try up to 50 times to find a free cell
+        // Try up to 50 times to find a free cell inside the walls
         int attempts = 0;
         Point randomPosition = null;
         while (attempts < 50) {
-            int randomX = random.nextInt(GRID_COLS) * cellSize;
-            int randomY = random.nextInt(GRID_ROWS) * cellSize;
-            Point candidatePos = new Point(randomX, randomY);
+            // Restrict spawning to rows and columns inside the walls
+            int randomCol = random.nextInt(GRID_COLS - 2) + 1; // Exclude first and last columns
+            int randomRow = random.nextInt(GRID_ROWS - 2) + 1; // Exclude first and last rows
+            Point candidatePos = new Point(randomCol * cellSize, randomRow * cellSize);
 
             // Check if the cell is free AND not already occupied by a monster or the hero
             if (isCellFree(candidatePos)
@@ -379,6 +380,7 @@ public class GamePanel extends JPanel {
             spawnedMonsterTypes.add(monsterType);
         }
     }
+
 
     /**
      * Move each monster within the grid, ensuring it cannot pass walls/objects, go outside, or step onto hero.

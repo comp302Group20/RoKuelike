@@ -13,14 +13,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Enum to mark each cell as FLOOR or WALL.
- */
-enum CellType {
-    FLOOR,
-    WALL
-}
-
 public class BuildModePanel extends JPanel {
     private Hall currentHall;
 
