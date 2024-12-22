@@ -10,6 +10,7 @@ public class AssetPaths {
 
     // UI elements
     public static final String SPRITESHEET = getPath("/spritesheet.png");
+    public static final String SPRITESHEET_2 = getPath("/spritesheet_2.png");
     public static final String GAME_TITLE = getPath("/title2.png");
     public static final String MAIN_MENU_BACKGROUND = getPath("/mainmenu.png");
     public static final String NEWGAME_BUTTON = getPath("/newgamebutton.png");

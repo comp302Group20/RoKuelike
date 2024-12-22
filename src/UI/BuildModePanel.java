@@ -146,8 +146,8 @@ public class BuildModePanel extends JPanel {
 
         // Vertical walls on the left & right edges, for rows 1..11
         for (int r = 1; r <= 11; r++) {
-            grid[r][0] = CellType.WALL;          // left column
-            grid[r][GRID_COLS - 1] = CellType.WALL;  // right column
+            grid[r][0] = CellType.WALL;                // left column
+            grid[r][GRID_COLS - 1] = CellType.WALL;    // right column
         }
 
         // Horizontal walls on row=1 and row=11, for columns 1..11
@@ -156,8 +156,7 @@ public class BuildModePanel extends JPanel {
             grid[11][c] = CellType.WALL;
         }
 
-        // Notice we do NOT mark row=0 or row=12 as WALL,
-        // so those are purely floors.
+        // row=0 or row=12 remain floors (not walled).
     }
 
     /**
@@ -343,15 +342,12 @@ public class BuildModePanel extends JPanel {
 
                 // If it's a wall, overlay a wall image
                 if (grid[r][c] == CellType.WALL) {
-                    // Left column
                     if (c == 0) {
                         g.drawImage(leftVerticalWallImage, x, y, cellSize, cellSize, null);
                     }
-                    // Right column
                     else if (c == GRID_COLS - 1) {
                         g.drawImage(rightVerticalWallImage, x, y, cellSize, cellSize, null);
                     }
-                    // Otherwise horizontal wall (top row inside, row=1 or row=11, etc.)
                     else {
                         g.drawImage(horizontalWallImage, x, y, cellSize, cellSize, null);
                     }
@@ -408,7 +404,7 @@ public class BuildModePanel extends JPanel {
     }
 
     /**
-     * Transition to Play Mode in a new window and close this BuildMode panel.
+     * Transition to Play Mode in a new window, using the edited grid & objects.
      */
     private void startPlayMode() {
         JFrame playModeFrame = new JFrame("Play Mode");
@@ -416,11 +412,15 @@ public class BuildModePanel extends JPanel {
         playModeFrame.setSize(1600, 900);
         playModeFrame.setLocationRelativeTo(null);
 
-        JPanel emptyPanel = new JPanel();
-        playModeFrame.add(emptyPanel);
+        // Create a GamePanel that knows about our grid and placed objects
+        GamePanel gamePanel = new GamePanel(grid, placedObjectsGrid);
+
+        // Add the GamePanel to the new frame
+        playModeFrame.add(gamePanel);
 
         playModeFrame.setVisible(true);
 
+        // Close the BuildMode panel's window
         SwingUtilities.getWindowAncestor(this).dispose();
     }
 
@@ -460,11 +460,11 @@ public class BuildModePanel extends JPanel {
     /**
      * Data class for placed objects.
      */
-    private static class PlacedObject {
-        final BufferedImage image;
-        final int gridRow;
-        final int gridCol;
-        final boolean isDouble;
+    public static class PlacedObject {
+        public final BufferedImage image;
+        public final int gridRow;
+        public final int gridCol;
+        public final boolean isDouble;
 
         public PlacedObject(BufferedImage image, int gridRow, int gridCol, boolean isDouble) {
             this.image = image;
