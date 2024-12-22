@@ -14,4 +14,11 @@ public class AssetPaths {
     public static final String NEWGAME_BUTTON = getPath("/Assets/newgamebutton.png");
     public static final String HELP_BUTTON = getPath("/Assets/helpbutton.png");
     public static final String EXIT_BUTTON = getPath("/Assets/exitbutton.png");
+    public static final String HERO = getPath("/Assets/player.png");
+    public static final String ARCHER = getPath("/Assets/archer.png");
+    public static final String WIZARD = getPath("/Assets/wizard.png");
+    public static final String FIGHTER = getPath("/Assets/fighter.png");
+    public static final String PAUSE_BUTTON = getPath("/Assets/pausegame.png");
+    public static final String EXIT_GAME = getPath("/Assets/exitgame.png");
+    public static final String RESUME_BUTTON = getPath("/Assets/resumegame.png");
 }
