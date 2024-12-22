@@ -33,7 +33,7 @@ public class RokueLikeMainMenu extends JFrame {
         setContentPane(backgroundPanel);
 
         // Add title image
-        ImageIcon titleIcon = loadImageIcon(AssetPaths.TITLE_IMAGE);
+        ImageIcon titleIcon = loadImageIcon(AssetPaths.GAME_TITLE);
         Image titleImage = titleIcon.getImage();
         titleLabel = new JLabel(new ImageIcon(titleImage));
 
