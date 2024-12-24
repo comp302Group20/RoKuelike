@@ -16,6 +16,7 @@ public class AssetPaths {
     public static final String NEWGAME_BUTTON = getPath("/newgamebutton.png");
     public static final String HELP_BUTTON = getPath("/helpbutton.png");
     public static final String EXIT_BUTTON = getPath("/exitbutton.png");
+   
 
     // Sprite coordinates for different objects (x, y, width, height)
     public static final int[] FLOOR_TILE = {32, 48, 16, 16};
@@ -38,4 +39,5 @@ public class AssetPaths {
     public static final String PAUSE_BUTTON = getPath("/pausegame.png");
     public static final String EXIT_GAME = getPath("/exitgame.png");
     public static final String RESUME_BUTTON = getPath("/resumegame.png");
+    public static final String PAUSED_INDICATOR = getPath("/paused2.png");
 }

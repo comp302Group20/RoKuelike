@@ -42,6 +42,7 @@ public class GamePanel extends JPanel {
     private Timer monsterSpawnerTimer;
     private Timer monsterMovementTimer;
     private boolean isPaused = false;
+    private PausePopUp pausePopUp;
 
     // KEY-related
     private BuildModePanel.PlacedObject keyObject; // the object that has the key
@@ -453,10 +454,44 @@ public class GamePanel extends JPanel {
             isPaused = !isPaused;
             requestFocusInWindow(); // Refocus to ensure key events work
             updatePauseButtonImage(pauseButton);
+            
+            if (isPaused) {
+                showPausePopUp(); // Show the pop-up when paused
+            } else {
+                hidePausePopUp(); // Hide the pop-up when unpaused
+            }
+            
         });
         setLayout(null);
         add(pauseButton);
     }
+    private void showPausePopUp() {
+        if (pausePopUp == null) {
+        pausePopUp = new PausePopUp();
+        pausePopUp.setBounds(0,0, getWidth(), getHeight()); // Full-size overlay
+        pausePopUp.setOpaque(false); // Transparency for the background
+    
+        setLayout(null);
+        add(pausePopUp);
+        pausePopUp.setVisible(true);
+        // Force a repaint to ensure the panel appears
+        revalidate(); 
+        repaint();  
+        }
+        pausePopUp.setVisible(true);
+    }
+
+    private void hidePausePopUp() {
+        if (pausePopUp != null) {
+            pausePopUp.setVisible(false);
+            remove(pausePopUp); // Optionally remove it from the panel to clean up
+            pausePopUp = null; // Clear reference if removed
+            revalidate(); 
+            repaint(); 
+        }
+    }
+    
+    
 
     private void updatePauseButtonImage(JButton button) {
         BufferedImage buttonImage = isPaused ? resumeButtonImage : pauseButtonImage;
@@ -511,6 +546,16 @@ public class GamePanel extends JPanel {
             Point monsterPos = monsterPositions.get(i);
             BufferedImage monsterImage = monsterImages.get(spawnedMonsterTypes.get(i));
             g.drawImage(monsterImage, monsterPos.x, monsterPos.y, cellSize, cellSize, null);
+        }
+        // Pause overlay logic
+        if (isPaused) {
+            // Draw a semi-transparent black overlay
+            g.setColor(new Color(0, 0, 0, 150)); // RGBA for transparency
+            g.fillRect(0, 0, getWidth(), getHeight());
+
+            
+            revalidate(); 
+            repaint();  
         }
     }
 
@@ -583,7 +628,8 @@ public class GamePanel extends JPanel {
             }
         }
     }
-
+   
+    
     public static void main(String[] args) {
         // Example test for standalone usage
         JFrame frame = new JFrame("Game Panel Test");
@@ -622,7 +668,9 @@ public class GamePanel extends JPanel {
 
         GamePanel gamePanel = new GamePanel(testGrid, testObjects);
         frame.add(gamePanel);
-
+        
         frame.setVisible(true);
+
+        
     }
 }
