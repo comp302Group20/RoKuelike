@@ -36,6 +36,9 @@ public class AssetPaths {
     public static final int[] SKULL = {176, 48, 16, 16};
     public static final int[] POTION = {192, 48, 16, 16};
 
+    public static final String RUNE = getPath("/keyRune.png");
+
+
     // In-game
     public static final String BUILD_MODE_BACKGROUND = getPath("/Assets/build-mode.png");
     public static final String HERO = getPath("/player.png");

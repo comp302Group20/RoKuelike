@@ -2,13 +2,16 @@ package Domain;
 
 import UI.BuildModePanel;
 import Utils.AssetPaths;
+import UI.GamePanel;
 
 public class ArcherMonster extends Monster {
     private long lastShot;
+    private GamePanel gamePanel;
 
-    public ArcherMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg) {
+    public ArcherMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg, GamePanel gp) {
         super(sx, sy, AssetPaths.ARCHER, h, mg);
         lastShot = System.currentTimeMillis();
+        gamePanel = gp;
     }
 
     @Override
