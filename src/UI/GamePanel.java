@@ -35,6 +35,8 @@ public class GamePanel extends JPanel {
     private Timer monsterSpawnerTimer;
     private Timer monsterMovementTimer;
     private boolean isPaused = false;
+    private PausePopUp pausePopUp;
+
 
     public GamePanel(BuildModePanel.CellType[][] g, BuildModePanel.PlacedObject[][] p) {
         grid = g;
@@ -193,9 +195,40 @@ public class GamePanel extends JPanel {
             isPaused = !isPaused;
             requestFocusInWindow();
             updatePauseButtonIcon(b);
+            if (isPaused) {
+                showPausePopUp(); // Show the pop-up when paused
+            } else {
+                hidePausePopUp(); // Hide the pop-up when unpaused
+            }
         });
         setLayout(null);
         add(b);
+    }
+
+    private void showPausePopUp() {
+        if (pausePopUp == null) {
+        pausePopUp = new PausePopUp();
+        pausePopUp.setBounds(0,0, getWidth(), getHeight()); // Full-size overlay
+        pausePopUp.setOpaque(false); // Transparency for the background
+    
+        setLayout(null);
+        add(pausePopUp);
+        pausePopUp.setVisible(true);
+        // Force a repaint to ensure the panel appears
+        revalidate(); 
+        repaint();  
+        }
+        pausePopUp.setVisible(true);
+    }
+
+    private void hidePausePopUp() {
+        if (pausePopUp != null) {
+            pausePopUp.setVisible(false);
+            remove(pausePopUp); // Optionally remove it from the panel to clean up
+            pausePopUp = null; // Clear reference if removed
+            revalidate(); 
+            repaint(); 
+        }
     }
 
     private void updatePauseButtonIcon(JButton b) {
