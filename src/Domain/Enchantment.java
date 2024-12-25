@@ -2,16 +2,18 @@ package Domain;
 
 import java.util.Random;
 
-public abstract class Enchantment {
+public abstract class Enchantment implements iOccupier{
 	
 	private static Class<?> [] enchantTypes = {ExtraTime.class, ExtraLife.class, Reveal.class, CloakOfProtection.class, LuringGem.class};
 	private static final Random random = new Random(3);
 	protected boolean inInventory;
+	protected Hall hall;
 	protected int[] location;
 	
-	public Enchantment(boolean inInventory, int[] location) {
+	public Enchantment(boolean inInventory, int[] location, Hall hall) {
 		this.inInventory = inInventory;
 		this.location = location;
+		this.hall = hall;
 	}
 	
 	public abstract void collectEnchant(Hero hero);
@@ -26,11 +28,16 @@ public abstract class Enchantment {
 			spawnX = random.nextInt(hall.getXsize());
 			spawnY = random.nextInt(hall.getYsize());
 		}
-		if (trialCount == hall.getXsize()*hall.getYsize()) {
-			System.out.println("Hall is full, monster can't be spawned");
+		if (trialCount >= hall.getXsize()*hall.getYsize()) {
+			System.out.println("Hall is full, enchantment can't be spawned");
 		}
 		int[] coords = {spawnX, spawnY};
-		Enchantment newEnchant = (Enchantment) enchantTypes[randomEnchant].getConstructor(boolean.class, int[].class).newInstance(false, coords);
+		Enchantment newEnchant = (Enchantment) enchantTypes[randomEnchant].getConstructor(boolean.class, int[].class, Hall.class).newInstance(false, coords, hall);
+		hall.placeOccupierToHall(spawnX, spawnY, newEnchant);
 	}
-
+	
+	@Override
+	public void place(Square s) {
+		s.placeOccupier(this);
+	}
 }

@@ -7,8 +7,8 @@ public class Reveal extends Enchantment {
 	private int duration = 10;
 	private Random random = new Random(4);
 	
-	public Reveal(boolean inInventory, int[] location) {
-		super(inInventory, location);
+	public Reveal(boolean inInventory, int[] location, Hall hall) {
+		super(inInventory, location, hall);
 	}
 
 	@Override
@@ -31,4 +31,6 @@ public class Reveal extends Enchantment {
 		} while (!fitsInHall);
 		// highlight(startingX, startingY, startingX + 3, startingY + 3) for 10 seconds
 	}
+
+	
 }

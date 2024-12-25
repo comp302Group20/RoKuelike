@@ -59,4 +59,9 @@ public class Hero {
 	public void setCurrentHall(Hall currentHall) {
 		this.currentHall = currentHall;
 	}
+
+	public int getLivesCount() {
+		return livesCount;
+	}
+
 }

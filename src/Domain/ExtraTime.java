@@ -4,8 +4,8 @@ public class ExtraTime extends Enchantment {
 
 	private static int timeAdded = 5;
 	
-	public ExtraTime(boolean inInventory, int[] location) {
-		super(inInventory, location);
+	public ExtraTime(boolean inInventory, int[] location, Hall hall) {
+		super(inInventory, location, hall);
 	}
 
 	@Override

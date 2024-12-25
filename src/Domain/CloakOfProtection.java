@@ -4,8 +4,8 @@ public class CloakOfProtection extends Enchantment {
 	
 	private static int duration = 20;
 	
-	public CloakOfProtection(boolean inInventory, int[] location) {
-		super(inInventory, location);
+	public CloakOfProtection(boolean inInventory, int[] location, Hall hall) {
+		super(inInventory, location, hall);
 	}
 
 	@Override

@@ -6,8 +6,8 @@ public class LuringGem extends Enchantment {
 
 	//private static int duration; ???There is no duration in project but should we include it? 
 	
-	public LuringGem(boolean inInventory, int[] location) {
-		super(inInventory, location);
+	public LuringGem(boolean inInventory, int[] location, Hall hall) {
+		super(inInventory, location, hall);
 	}
 
 	@Override
@@ -37,9 +37,9 @@ public class LuringGem extends Enchantment {
 		}
 		
 		ArrayList<Monster> allMonsters = hero.getCurrentHall().getMonsters();
-		for (Monster m : allMonsters) {
+		for (Monster m : allMonsters) { 
 			if (m instanceof FighterMonster) {
-				((FighterMonster) m).move(intDirection);
+				((FighterMonster) m).move(intDirection, hall.getXsize());
 			}
 		}
 	}

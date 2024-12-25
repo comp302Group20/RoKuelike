@@ -34,31 +34,45 @@ public class Hall{
             this.xsize = xsize;
             this.ysize = ysize;
             squaresWithObjects = new ArrayList<Square>();
+            monsters = new ArrayList<Monster>();
             squares = new Square[xsize][ysize];
             for (int i = 0; i < xsize; i++){
                 for (int j = 0; j < ysize; j++) {
-                    Square[] nearby = new Square[4];
+                	squares[i][j] = new Square(i, j, this);
+                }
+            }
+            Square current;
+            for (int i = 0; i < xsize; i++){
+                for (int j = 0; j < ysize; j++) {
+                	current = squares[i][j];
                     if (i > 0) {
-                        nearby[0] = squares[i-1][j];
+                    	Square leftNeighbor = squares[i-1][j];
+                        current.setNeighbor(leftNeighbor, 0);
+                        leftNeighbor.setNeighbor(current, 2);
                     } else {
-                        nearby[0] = null;
+                        current.setNeighbor(new Wall(), 0);
                     }
                     if (j > 0) {
-                        nearby[1] = squares[i][j-1];
+                        Square upNeighbor = squares[i][j-1];
+                        current.setNeighbor(upNeighbor, 1);
+                        upNeighbor.setNeighbor(current, 3);
                     } else {
-                        nearby[1] = null;
+                        current.setNeighbor(new Wall(), 1);
                     }
-                    if (i < xsize-1) { //assigning neighbors before creating said neighbors may be problematic. Test later
-                        nearby[2] = squares[i+1][j];
+                    if (i < xsize-1) { 
+                        Square rightNeighbor = squares[i+1][j];
+                        current.setNeighbor(rightNeighbor, 2);
+                        rightNeighbor.setNeighbor(current, 0);
                     } else {
-                        nearby[2] = null;
+                        current.setNeighbor(new Wall(), 2);
                     }
-                    if (j < ysize-1) { //assigning neighbors before creating said neighbors may be problematic. Test later
-                        nearby[3] = squares[i][j+1];
+                    if (j < ysize-1) { 
+                    	Square downNeighbor = squares[i][j+1];
+                        current.setNeighbor(downNeighbor, 3);
+                        downNeighbor.setNeighbor(current, 1);
                     } else {
-                        nearby[3] = null;
+                    	current.setNeighbor(new Wall(), 3);
                     }
-                    squares[i][j] = new Square(i, j, nearby, this);
                 }
             }
         }

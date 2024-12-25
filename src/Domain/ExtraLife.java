@@ -2,8 +2,8 @@ package Domain;
 
 public class ExtraLife extends Enchantment {
 
-	public ExtraLife(boolean inInventory, int[] location) {
-		super(inInventory, location);
+	public ExtraLife(boolean inInventory, int[] location, Hall hall) {
+		super(inInventory, location, hall);
 	}
 
 	@Override

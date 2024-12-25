@@ -32,35 +32,26 @@ public class FighterMonster extends Monster {
 	
 	public void moveRandomly() {
 		int movingDirection = random.nextInt(4);
-		switch (movingDirection) {
-		case 0:
-			coords[0]--;
-			break;
-		case 1:
-			coords[1]--;
-			break;
-		case 2:
-			coords[0]++;
-			break;
-		case 3:
-			coords[1]++;
-			break;
-		}
+		move(movingDirection, 1);
 	}
 	
-	public void move(int movingDirection) {
-		switch (movingDirection) {
-		case 0:
-			coords[0]--;
+	public void move(int movingDirection, int distance) {
+		switch (movingDirection) { 
+		case 0: //left, x-, A
+			if (coords[0] - distance >= 0) {coords[0] -= distance;}
+			else {coords[0] = 0;}
 			break;
-		case 1:
-			coords[1]--;
+		case 1: //up, y+, W
+			if (coords[1] + distance < hall.getYsize()) {coords[1] += distance;}
+			else {coords[1] = hall.getYsize()-1;}
 			break;
-		case 2:
-			coords[0]++;
+		case 2: //right, x+, D
+			if (coords[0] + distance < hall.getXsize()) {coords[0] += distance;}
+			else {coords[0] = hall.getXsize() - 1;}
 			break;
-		case 3:
-			coords[1]++;
+		case 3: //down, y-, S
+			if (coords[1] - distance <= 0) {coords[1] -= distance;}
+			else {coords[1] = 0;}
 			break;
 		}
 	}
