@@ -1,35 +1,73 @@
 package Domain;
 
-import javax.swing.ImageIcon;
-import java.awt.Graphics;
-import java.awt.Image;
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URL;
 
+/**
+ * Abstract Monster class providing basic monster fields and rendering.
+ * Subclasses (ArcherMonster, FighterMonster, WizardMonster, etc.) override update().
+ */
 public abstract class Monster {
     protected int x, y;
-    protected int width = 20;
-    protected int height = 20;
+    protected int width = 64;   // Adjust to match cellSize in GamePanel
+    protected int height = 64;  // Adjust to match cellSize in GamePanel
     protected Image monsterImage;
 
     public Monster(int startX, int startY, String imagePath) {
         this.x = startX;
         this.y = startY;
+        loadImage(imagePath);
+    }
+
+    private void loadImage(String imagePath) {
         try {
-            monsterImage = new ImageIcon(getClass().getResource(imagePath)).getImage();
-        } catch (Exception e) {
-            System.out.println("Monster image not found!");
+            // Because imagePath might start with "/", strip it if needed:
+            String pathForResource = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
+            URL resourceUrl = getClass().getClassLoader().getResource(pathForResource);
+            if (resourceUrl == null) {
+                throw new IOException("Monster image not found: " + imagePath);
+            }
+            BufferedImage loadedImage = ImageIO.read(resourceUrl);
+            monsterImage = loadedImage;
+        } catch (IOException e) {
+            System.err.println("Error loading monster image: " + e.getMessage());
+            monsterImage = createFallbackImage();
         }
     }
 
-    public abstract void update(); // Different monsters will implement different behaviors
+    /**
+     * Subclasses must define how they update, e.g. movement logic, attacking, etc.
+     */
+    public abstract void update();
 
+    /**
+     * Draw the monster at (x, y).
+     */
     public void draw(Graphics g) {
         g.drawImage(monsterImage, x, y, width, height, null);
     }
 
-    // Getters and setters
+    /**
+     * Creates a simple red fallback image if loading fails.
+     */
+    private BufferedImage createFallbackImage() {
+        BufferedImage fallback = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = fallback.createGraphics();
+        g2d.setColor(Color.RED);
+        g2d.fillRect(0, 0, width, height);
+        g2d.dispose();
+        return fallback;
+    }
+
+    // Getters & Setters
     public int getX() { return x; }
     public int getY() { return y; }
+
     public void setPosition(int x, int y) {
-        this.x = x; this.y = y;
+        this.x = x;
+        this.y = y;
     }
 }

@@ -4,6 +4,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
+/**
+ * Generic game object that can be placed on the grid (e.g. chests, boxes).
+ */
 public class GameObject {
     private final String name;
     private final String imagePath;
@@ -24,7 +27,7 @@ public class GameObject {
     private void loadImage() {
         try {
             if (spriteLocation != null) {
-                // Load from sprite sheet
+                // Load from a sprite sheet
                 Image spriteSheet = new ImageIcon(getClass().getResource(imagePath)).getImage();
                 BufferedImage fullImage = new BufferedImage(
                         spriteSheet.getWidth(null),
@@ -42,7 +45,7 @@ public class GameObject {
                         spriteLocation.getHeight()
                 );
             } else {
-                // Load full image (existing behavior)
+                // Load a standalone image
                 image = new ImageIcon(getClass().getResource(imagePath)).getImage();
             }
         } catch (Exception e) {

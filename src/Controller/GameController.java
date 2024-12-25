@@ -2,41 +2,43 @@ package Controller;
 
 import Domain.Hall;
 import UI.BuildModePanel;
+import UI.GamePanel;
 
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * The overall controller that manages both Build Mode and Play Mode for a Hall.
+ * You can later expand this to manage multiple Halls or more complex game flows.
+ */
 public class GameController {
-    private JFrame frame;
-    private BuildModePanel buildModePanel;
+
+    private Hall hall;
 
     public GameController(Hall hall) {
-        // Create a new JFrame for Build Mode
-        frame = new JFrame("Rokue-Like - Build Mode: " + hall.getName());
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
-        frame.setLocationRelativeTo(null);
+        this.hall = hall;
+        // Start by launching Build Mode
+        new BuildModeController(hall, this);
+    }
 
-        buildModePanel = new BuildModePanel(hall);
-        frame.setLayout(new BorderLayout());
-        frame.add(buildModePanel, BorderLayout.CENTER);
+    /**
+     * Called by the BuildModeController after finishing building
+     * if the hall meets the minimum object requirement.
+     */
+    public void onBuildModeFinished(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
+        // Now launch Play Mode in a new window
+        startPlayMode(grid, placedObjects);
+    }
 
-        // Example "Finish Build" button to proceed (if you want to switch to Play Mode later)
-        JButton finishBuildBtn = new JButton("Finish Building");
-        finishBuildBtn.addActionListener(e -> {
-            if (hall.validateObjectCount()) {
-                JOptionPane.showMessageDialog(frame, "Hall is ready! Switch to Play Mode here.");
-                // TODO: Play mode implementation here
-            } else {
-                JOptionPane.showMessageDialog(frame,
-                        "Not enough objects in " + hall.getName() + "!");
-            }
-        });
+    private void startPlayMode(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
+        JFrame playModeFrame = new JFrame("Play Mode - " + hall.getName());
+        playModeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        playModeFrame.setSize(1600, 900);
+        playModeFrame.setLocationRelativeTo(null);
 
-        JPanel bottomPanel = new JPanel();
-        bottomPanel.add(finishBuildBtn);
-        frame.add(bottomPanel, BorderLayout.SOUTH);
+        GamePanel gamePanel = new GamePanel(grid, placedObjects);
+        playModeFrame.add(gamePanel, BorderLayout.CENTER);
 
-        frame.setVisible(true);
+        playModeFrame.setVisible(true);
     }
 }

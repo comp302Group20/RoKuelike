@@ -1,8 +1,13 @@
+
+
 import UI.RokueLikeMainMenu;
 
+/**
+ * Entry point for the entire application.
+ */
 public class Main {
     public static void main(String[] args) {
-        // Launch the main menu
+        // Simply launch the main menu
         new RokueLikeMainMenu().setVisible(true);
     }
 }

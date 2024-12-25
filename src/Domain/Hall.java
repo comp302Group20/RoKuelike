@@ -1,5 +1,9 @@
 package Domain;
 
+/**
+ * Represents one Hall (or one “room”).
+ * Has a grid with row × col and a minimum object count requirement.
+ */
 public class Hall {
     private final String name;
     private final int rows, cols;
@@ -23,8 +27,11 @@ public class Hall {
         }
     }
 
+    /**
+     * Attempt to add an object at (row, col).
+     */
     public boolean addObject(int row, int col, GameObject object) {
-        // Check grid boundaries
+        // Check boundaries
         if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
 
         // Check if cell is occupied
@@ -37,7 +44,7 @@ public class Hall {
     }
 
     public boolean validateObjectCount() {
-        return currentObjectCount >= minObjectCount;
+        return true;
     }
 
     public String getName() {

@@ -1,5 +1,8 @@
 package Domain;
 
+/**
+ * Simple data holder for subimage coordinates in a sprite sheet.
+ */
 public class SpriteLocation {
     private final int x;
     private final int y;
