@@ -37,6 +37,9 @@ public class AssetPaths {
     public static final int[] POTION = {192, 48, 16, 16};
 
     public static final String RUNE = getPath("/keyRune.png");
+    public static final String HEART = getPath("/heart.png");
+    public static final String DOOR_IMAGE = getPath("/door.png");
+    public static final String GAME_OVER = getPath("/GameOver.png");
 
 
     // In-game

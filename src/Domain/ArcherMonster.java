@@ -24,7 +24,7 @@ public class ArcherMonster extends Monster {
             int hr = hero.getY() / 64;
             int hc = hero.getX() / 64;
             double d = Math.sqrt((mr - hr)*(mr - hr) + (mc - hc)*(mc - hc));
-            if (d < 4) {
+            if (d <= 3 && d!=2*Math.sqrt(2)) { // THIS IS GOING TO BE MODIFIED LATER.
                 hero.setHealth(hero.getHealth() - 1);
                 if (hero.getHealth() <= 0) {
                     System.out.println("Game Over");
