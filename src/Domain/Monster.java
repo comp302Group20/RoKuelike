@@ -1,11 +1,11 @@
 package Domain;
 
 import UI.BuildModePanel;
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
+import javax.imageio.ImageIO;
 
 public abstract class Monster {
     protected int x, y;
