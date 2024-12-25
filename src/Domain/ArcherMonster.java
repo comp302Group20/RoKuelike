@@ -1,19 +1,32 @@
 package Domain;
 
-/**
- * ArcherMonster now stores its own image path internally.
- */
+import UI.BuildModePanel;
+import Utils.AssetPaths;
+
 public class ArcherMonster extends Monster {
+    private long lastShot;
 
-    // Image path is now defined here instead of AssetPaths or elsewhere
-    private static final String IMAGE_PATH = "/resources/Assets/archer.png";
-
-    public ArcherMonster(int startX, int startY) {
-        super(startX, startY, IMAGE_PATH);
+    public ArcherMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg) {
+        super(sx, sy, AssetPaths.ARCHER, h, mg);
+        lastShot = System.currentTimeMillis();
     }
 
     @Override
     public void update() {
-        // Archer-specific behavior could go here.
+        long now = System.currentTimeMillis();
+        if (now - lastShot >= 1000) {
+            lastShot = now;
+            int mr = y / 64;
+            int mc = x / 64;
+            int hr = hero.getY() / 64;
+            int hc = hero.getX() / 64;
+            double d = Math.sqrt((mr - hr)*(mr - hr) + (mc - hc)*(mc - hc));
+            if (d < 4) {
+                hero.setHealth(hero.getHealth() - 1);
+                if (hero.getHealth() <= 0) {
+                    System.out.println("Game Over");
+                }
+            }
+        }
     }
 }
