@@ -579,7 +579,7 @@ public class GamePanel extends JPanel {
     private void checkDoorCondition() {
         int hr = hero.getY() / cellSize;
         int hc = hero.getX() / cellSize;
-        if (hr == DOOR_ROW && hc == DOOR_COL) {
+        if (hr == DOOR_ROW-1 && hc == DOOR_COL) {
             if (heroHasRune()) {
                 gameOver = true;
                 System.out.println("Hero escaped with the rune");

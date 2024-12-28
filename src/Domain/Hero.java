@@ -8,18 +8,20 @@ import java.io.IOException;
 import java.net.URL;
 
 public class Hero {
+    private static Hero instance = null;
     private int x;
     private int y;
     private int width;
     private int height;
     private BufferedImage heroImage;
-    private BufferedImage damageHeroImage; // Red-tinted image
+    private BufferedImage damageHeroImage;
     private int health = 3;
 
     private boolean showingDamageEffect = false;
     private long damageEffectStartTime = 0;
-    private static final int DAMAGE_EFFECT_DURATION = 50; // milliseconds
+    private static final int DAMAGE_EFFECT_DURATION = 50;
 
+    // Private constructor
     public Hero(int sx, int sy, int w, int h) {
         x = sx;
         y = sy;
@@ -31,6 +33,22 @@ public class Hero {
         } catch (IOException e) {
             heroImage = null;
         }
+    }
+
+    // Public getInstance method with lazy initialization
+    public static Hero getInstance(int sx, int sy, int w, int h) {
+        if (instance == null) {
+            instance = new Hero(sx, sy, w, h);
+        }
+        return instance;
+    }
+
+    // Alternative getInstance if hero already exists
+    public static Hero getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("Hero not initialized. Call getInstance(sx, sy, w, h) first.");
+        }
+        return instance;
     }
 
     public void move(int dx, int dy) {
@@ -70,7 +88,7 @@ public class Hero {
     private void startDamageEffect() {
         showingDamageEffect = true;
         damageEffectStartTime = System.currentTimeMillis();
-        damageHeroImage = tintImage(heroImage, new Color(255, 0, 0, 100)); // Adjust alpha for transparency
+        damageHeroImage = tintImage(heroImage, new Color(255, 0, 0, 100));
     }
 
     public void setHealth(int h) {
@@ -91,8 +109,12 @@ public class Hero {
     public int getHeight() { return height; }
     public int getHealth() { return health; }
 
-    // Optionally, add a takeDamage method for clarity
     public void takeDamage(int amount) {
         setHealth(this.health - amount);
+    }
+
+    // Add reset method for testing or restarting game
+    public static void reset() {
+        instance = null;
     }
 }
