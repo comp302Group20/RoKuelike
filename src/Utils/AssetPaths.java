@@ -51,4 +51,5 @@ public class AssetPaths {
     public static final String PAUSE_BUTTON = getPath("/pausegame.png");
     public static final String EXIT_GAME = getPath("/exitgame.png");
     public static final String RESUME_BUTTON = getPath("/resumegame.png");
+    public static final String DIED_HERO = getPath("/diedhero.png");
 }

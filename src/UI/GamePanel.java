@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * The main panel for playing the game. Handles rendering, user input,
@@ -60,7 +61,7 @@ public class GamePanel extends JPanel {
     private BufferedImage rightVerticalWallImage;
 
     /**
-     * Images for the pause/resume/exit buttons, the rune, door, game-over screen, and hearts.
+     * Images for the pause/resume/exit buttons, the rune, door, game-over screen, died hero, and hearts.
      */
     private BufferedImage pauseButtonImage;
     private BufferedImage resumeButtonImage;
@@ -68,6 +69,7 @@ public class GamePanel extends JPanel {
     private BufferedImage runeImage;
     private BufferedImage doorImage;
     private BufferedImage gameOverImage;
+    private BufferedImage diedHeroImage; // New image for died hero
     private BufferedImage heartImage;
 
     /**
@@ -90,6 +92,7 @@ public class GamePanel extends JPanel {
      */
     private Timer monsterSpawnerTimer;
     private Timer monsterMovementTimer;
+    private Timer gameOverTimer; // Timer for game over transition
 
     /**
      * True if the game is paused; false otherwise.
@@ -100,6 +103,11 @@ public class GamePanel extends JPanel {
      * True if the game is over; false otherwise.
      */
     private boolean gameOver = false;
+
+    /**
+     * True if the hero has died and is in the 2-second death animation.
+     */
+    private boolean heroDied = false;
 
     /**
      * The row and column where the door is placed.
@@ -130,6 +138,7 @@ public class GamePanel extends JPanel {
         loadDoorImage();
         placeDoorAsObject();
         loadGameOverImage();
+        loadDiedHeroImage(); // Load DIED_HERO image
         loadHeartImage();
         initializeFloorWallImages();
         initializeButtonImages();
@@ -147,7 +156,7 @@ public class GamePanel extends JPanel {
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (isPaused || gameOver) return;
+                if (isPaused || gameOver || heroDied) return; // Disable movement if paused, game over, or hero died
                 int step = cellSize;
                 int dx = 0;
                 int dy = 0;
@@ -173,7 +182,7 @@ public class GamePanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (isPaused || gameOver) return;
+                if (isPaused || gameOver || heroDied) return; // Disable actions if paused, game over, or hero died
                 if (e.getButton() != MouseEvent.BUTTON1) return;
 
                 int mx = e.getX();
@@ -189,6 +198,20 @@ public class GamePanel extends JPanel {
                 }
             }
         });
+    }
+
+    /**
+     * Loads the DIED_HERO image from AssetPaths.
+     */
+    private void loadDiedHeroImage() {
+        try {
+            URL diedHeroUrl = getClass().getClassLoader().getResource(AssetPaths.DIED_HERO.substring(1));
+            if (diedHeroUrl != null) {
+                diedHeroImage = ImageIO.read(diedHeroUrl);
+            }
+        } catch (IOException e) {
+            diedHeroImage = null;
+        }
     }
 
     /**
@@ -385,7 +408,7 @@ public class GamePanel extends JPanel {
         monsterSpawnerTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!isPaused && !gameOver) {
+                if (!isPaused && !gameOver && !heroDied) {
                     spawnMonster();
                     repaint();
                 }
@@ -401,10 +424,14 @@ public class GamePanel extends JPanel {
         monsterMovementTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!isPaused && !gameOver) {
+                if (!isPaused && !gameOver && !heroDied) {
                     for (Monster m : monsters) {
                         m.update();
                     }
+
+                    // **Add this line to check health after monsters move**
+                    checkHealthCondition();
+
                     repaint();
                 }
             }
@@ -517,6 +544,12 @@ public class GamePanel extends JPanel {
             return;
         }
 
+        if (heroDied && diedHeroImage != null) {
+            hideButtonsIfGameOver();
+            g.drawImage(diedHeroImage, hero.getX(), hero.getY(), cellSize, cellSize, null);
+            return;
+        }
+
         drawBoard(g);
         drawGridLines(g);
         drawPlacedObjects(g);
@@ -562,7 +595,7 @@ public class GamePanel extends JPanel {
         for (int i = 0; i < 3; i++) {
             Graphics2D g2d = (Graphics2D) g.create();
             int xPos = 10 + (i * (heartWidth));
-            int yPos = 0;
+            int yPos = -20;
             if (health > i) {
                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
             } else {
@@ -583,6 +616,17 @@ public class GamePanel extends JPanel {
             if (heroHasRune()) {
                 gameOver = true;
                 System.out.println("Hero escaped with the rune");
+
+                // **Stop all timers to prevent further game actions**
+                if (monsterSpawnerTimer != null) {
+                    monsterSpawnerTimer.cancel();
+                }
+                if (monsterMovementTimer != null) {
+                    monsterMovementTimer.cancel();
+                }
+
+                // **Repaint immediately to show the game-over screen**
+                SwingUtilities.invokeLater(() -> repaint());
             }
         }
     }
@@ -604,12 +648,35 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Checks if the hero's health has dropped to 0; triggers game-over if so.
+     * Checks if the hero's health has dropped to 0; triggers hero death if so.
      */
     private void checkHealthCondition() {
-        if (hero.getHealth() <= 0 && !gameOver) {
-            gameOver = true;
+        if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
+            heroDied = true;
+            isPaused = true; // Disable movement
             System.out.println("Hero died");
+
+            // Cancel existing timers to stop monster actions
+            if (monsterSpawnerTimer != null) {
+                monsterSpawnerTimer.cancel();
+            }
+            if (monsterMovementTimer != null) {
+                monsterMovementTimer.cancel();
+            }
+
+            // Start a 2-second timer to transition to game over
+            gameOverTimer = new Timer(true);
+            gameOverTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    gameOver = true;
+                    heroDied = false; // Reset heroDied flag
+                    SwingUtilities.invokeLater(() -> repaint());
+                }
+            }, 4000); // 2000 milliseconds = 2 seconds
+
+            // Repaint to show the died hero image immediately
+            SwingUtilities.invokeLater(() -> repaint());
         }
     }
 
@@ -775,11 +842,10 @@ public class GamePanel extends JPanel {
         pauseButton.setFocusPainted(false);
         pauseButton.setContentAreaFilled(false);
         pauseButton.addActionListener(ev -> {
-            if (!gameOver) {
+            if (!gameOver && !heroDied) { // Allow pausing only if not game over or hero died
                 isPaused = !isPaused;
+                updatePauseButtonIcon(pauseButton);
             }
-            requestFocusInWindow();
-            updatePauseButtonIcon(pauseButton);
         });
         setLayout(null);
         add(pauseButton);
@@ -817,7 +883,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Hides the pause and exit buttons if the game is over.
+     * Hides the pause and exit buttons if the game is over or the hero has died.
      */
     private void hideButtonsIfGameOver() {
         if (pauseButton != null) {

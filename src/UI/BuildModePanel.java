@@ -17,12 +17,13 @@ public class BuildModePanel extends JPanel {
         FLOOR,
         WALL
     }
+
     private Hall currentHall;
     private static final int GRID_ROWS = 13;
     private static final int GRID_COLS = 13;
-    private int cellSize = 64;
-    private CellType[][] grid;
-    private PlacedObject[][] placedObjectsGrid;
+    private final int cellSize = 64;
+    private final CellType[][] grid;
+    private final PlacedObject[][] placedObjectsGrid;
     private BufferedImage floorImage;
     private BufferedImage horizontalWallImage;
     private BufferedImage leftVerticalWallImage;
@@ -46,25 +47,47 @@ public class BuildModePanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (e.getButton() != MouseEvent.BUTTON1) return;
-                if (selectedObjectIndex < 0) return;
+                if (e.getButton() != MouseEvent.BUTTON1) return; // Only respond to left-click
+
                 int mouseX = e.getX();
                 int mouseY = e.getY();
-                if (mouseX < 0 || mouseX >= GRID_COLS * cellSize || mouseY < 0 || mouseY >= GRID_ROWS * cellSize) {
-                    return;
+
+                boolean insideGrid = mouseX >= 0 && mouseX < GRID_COLS * cellSize &&
+                        mouseY >= 0 && mouseY < GRID_ROWS * cellSize;
+
+                if (insideGrid) {
+                    int gridCol = mouseX / cellSize;
+                    int gridRow = mouseY / cellSize;
+
+                    // Prevent interactions with walls
+                    if (isWallCell(gridRow, gridCol)) {
+                        return;
+                    }
+
+                    if (selectedObjectIndex >= 0 && selectedObjectIndex < availableObjects.size()) {
+                        // Placement Mode: Place or Remove Object
+                        PlacedObject existingObj = placedObjectsGrid[gridRow][gridCol];
+                        if (existingObj != null) {
+                            // Remove the object
+                            removePlacedObject(gridRow, gridCol);
+                        } else {
+                            // Place the selected object
+                            placeObject(gridRow, gridCol);
+                        }
+                        repaint();
+                    } else {
+                        // Non-Placement Mode: Remove Object if Exists
+                        PlacedObject existingObj = placedObjectsGrid[gridRow][gridCol];
+                        if (existingObj != null) {
+                            removePlacedObject(gridRow, gridCol);
+                            repaint();
+                        }
+                        // Else, do nothing
+                    }
+                } else {
+                    // Clicked outside the grid; exit placement mode
+                    deselectCurrentObject();
                 }
-                int gridCol = mouseX / cellSize;
-                int gridRow = mouseY / cellSize;
-                if (gridRow == 0 || gridRow == GRID_ROWS - 1 || gridCol == 0 || gridCol == GRID_COLS - 1
-                        || grid[gridRow][gridCol] == CellType.WALL) {
-                    return;
-                }
-                placedObjectsGrid[gridRow][gridCol] = null;
-                BufferedImage selImage = availableObjects.get(selectedObjectIndex);
-                boolean selDouble = isDoubleHeight.get(selectedObjectIndex);
-                placedObjectsGrid[gridRow][gridCol] = new PlacedObject(selImage, gridRow, gridCol, selDouble);
-                repaint();
-                deselectCurrentObject();
             }
         });
     }
@@ -78,15 +101,18 @@ public class BuildModePanel extends JPanel {
     }
 
     private void initializeGrid() {
+        // Initialize all cells as FLOOR
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
                 grid[r][c] = CellType.FLOOR;
             }
         }
+        // Set vertical walls
         for (int r = 1; r <= 11; r++) {
             grid[r][0] = CellType.WALL;
             grid[r][GRID_COLS - 1] = CellType.WALL;
         }
+        // Set horizontal walls
         for (int c = 1; c <= 11; c++) {
             grid[1][c] = CellType.WALL;
             grid[11][c] = CellType.WALL;
@@ -97,7 +123,7 @@ public class BuildModePanel extends JPanel {
         try {
             URL resourceUrl = getClass().getClassLoader().getResource(AssetPaths.SPRITESHEET.substring(1));
             if (resourceUrl == null) {
-                throw new IOException();
+                throw new IOException("Spritesheet not found.");
             }
             BufferedImage spriteSheet = ImageIO.read(resourceUrl);
             int[] floorCoords = AssetPaths.FLOOR_TILE;
@@ -126,7 +152,7 @@ public class BuildModePanel extends JPanel {
 
     private void initializeUI() {
         objectColumnPanel = new JPanel();
-        objectColumnPanel.setBounds(1300, 0, 200, 900);
+        objectColumnPanel.setBounds(1300, 0, 300, 900); // Adjusted width for better UI
         objectColumnPanel.setLayout(new BoxLayout(objectColumnPanel, BoxLayout.Y_AXIS));
         objectColumnPanel.setBorder(BorderFactory.createTitledBorder("Available Objects"));
         objectColumnPanel.setBackground(new Color(240, 240, 240));
@@ -162,6 +188,7 @@ public class BuildModePanel extends JPanel {
                 objectColumnPanel.add(Box.createVerticalStrut(10));
             }
         } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -172,8 +199,12 @@ public class BuildModePanel extends JPanel {
         Image scaledImage = objectImage.getScaledInstance(cellSize, h, Image.SCALE_SMOOTH);
         JLabel objectLabel = new JLabel(new ImageIcon(scaledImage));
         objectPanel.add(objectLabel, BorderLayout.CENTER);
-        objectPanel.setMaximumSize(new Dimension(190, h + 10));
-        objectPanel.setPreferredSize(new Dimension(190, h + 10));
+        objectPanel.setMaximumSize(new Dimension(280, h + 10)); // Adjusted width for better UI
+        objectPanel.setPreferredSize(new Dimension(280, h + 10));
+        objectPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        objectPanel.setBackground(null);
+        objectPanel.setOpaque(false);
+
         objectPanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -192,6 +223,7 @@ public class BuildModePanel extends JPanel {
             JPanel prev = objectPanels.get(selectedObjectIndex);
             prev.setBackground(null);
             prev.setOpaque(false);
+            prev.repaint();
         }
         selectedObjectIndex = index;
         JPanel newPanel = objectPanels.get(index);
@@ -208,6 +240,55 @@ public class BuildModePanel extends JPanel {
             curr.repaint();
         }
         selectedObjectIndex = -1;
+    }
+
+    private boolean isWallCell(int r, int c) {
+        return grid[r][c] == CellType.WALL;
+    }
+
+    /**
+     * Modified placeObject method:
+     * - Double-height objects now occupy only one cell logically.
+     * - They are visually rendered as double-height without marking the cell above as occupied.
+     */
+    private void placeObject(int gridRow, int gridCol) {
+        BufferedImage selImage = availableObjects.get(selectedObjectIndex);
+        boolean selDouble = isDoubleHeight.get(selectedObjectIndex);
+
+        // Check placement validity
+        if (selDouble) {
+            if (gridRow <= 0) {
+                JOptionPane.showMessageDialog(BuildModePanel.this, "Not enough space to place a double-height object here.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (isWallCell(gridRow - 1, gridCol)) {
+                JOptionPane.showMessageDialog(BuildModePanel.this, "Cannot place double-height object here. Space above is a wall.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Optionally, check if the space above has a wall but do not mark it as occupied
+        }
+
+        // Check if the target cell is already occupied
+        if (placedObjectsGrid[gridRow][gridCol] != null) {
+            JOptionPane.showMessageDialog(BuildModePanel.this, "Cannot place object here. Space is already occupied.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Place the object
+        placedObjectsGrid[gridRow][gridCol] = new PlacedObject(selImage, gridRow, gridCol, selDouble);
+        // Do not mark the cell above as occupied
+    }
+
+    /**
+     * Modified removePlacedObject method:
+     * - Only clears the target cell, regardless of whether the object is double-height.
+     */
+    private void removePlacedObject(int gridRow, int gridCol) {
+        PlacedObject obj = placedObjectsGrid[gridRow][gridCol];
+        if (obj == null) return;
+
+        placedObjectsGrid[gridRow][gridCol] = null;
+        // Do not clear the cell above
     }
 
     @Override
@@ -251,6 +332,10 @@ public class BuildModePanel extends JPanel {
         g2d.dispose();
     }
 
+    /**
+     * Modified drawPlacedObjects method:
+     * - Double-height objects are rendered as tall as before but occupy only one grid cell logically.
+     */
     private void drawPlacedObjects(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
@@ -260,9 +345,12 @@ public class BuildModePanel extends JPanel {
                     int drawY = r * cellSize;
                     int drawW = cellSize;
                     int drawH = obj.isDouble ? cellSize * 2 : cellSize;
+
                     if (obj.isDouble) {
+                        // Position the image so that the base is in the current cell
                         drawY -= (drawH - cellSize);
                     }
+
                     g.drawImage(obj.image, drawX, drawY, drawW, drawH, null);
                 }
             }
