@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.net.URL;
+import java.awt.geom.AffineTransform;
 
 public class Hero {
     private static Hero instance = null;
@@ -14,12 +15,15 @@ public class Hero {
     private int width;
     private int height;
     private BufferedImage heroImage;
+    private BufferedImage mirroredHeroImage; // Mirrored image for left-facing
     private BufferedImage damageHeroImage;
     private int health = 3;
 
     private boolean showingDamageEffect = false;
     private long damageEffectStartTime = 0;
     private static final int DAMAGE_EFFECT_DURATION = 50;
+
+    private boolean facingLeft = false; // Direction state
 
     // Private constructor
     public Hero(int sx, int sy, int w, int h) {
@@ -30,8 +34,10 @@ public class Hero {
         try {
             URL url = getClass().getResource(AssetPaths.HERO);
             heroImage = ImageIO.read(url);
+            createMirroredHeroImage(); // Initialize mirrored image
         } catch (IOException e) {
             heroImage = null;
+            mirroredHeroImage = null;
         }
     }
 
@@ -51,22 +57,45 @@ public class Hero {
         return instance;
     }
 
+    // Create a mirrored version of the hero image for left-facing
+    private void createMirroredHeroImage() {
+        if (heroImage == null) return;
+        int w = heroImage.getWidth();
+        int h = heroImage.getHeight();
+        mirroredHeroImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = mirroredHeroImage.createGraphics();
+        AffineTransform at = AffineTransform.getScaleInstance(-1, 1);
+        at.translate(-w, 0);
+        g2d.drawImage(heroImage, at, null);
+        g2d.dispose();
+    }
+
     public void move(int dx, int dy) {
+        if (dx < 0) {
+            facingLeft = true; // Moving left
+        } else if (dx > 0) {
+            facingLeft = false; // Moving right
+        }
         x += dx;
         y += dy;
     }
 
     public void draw(Graphics g) {
         if (heroImage != null) {
-            BufferedImage imgToDraw = heroImage;
+            BufferedImage imgToDraw;
+
             if (showingDamageEffect) {
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - damageEffectStartTime < DAMAGE_EFFECT_DURATION) {
                     imgToDraw = damageHeroImage;
                 } else {
                     showingDamageEffect = false;
+                    imgToDraw = facingLeft && mirroredHeroImage != null ? mirroredHeroImage : heroImage;
                 }
+            } else {
+                imgToDraw = facingLeft && mirroredHeroImage != null ? mirroredHeroImage : heroImage;
             }
+
             g.drawImage(imgToDraw, x, y, width, height, null);
         } else {
             g.setColor(Color.RED);
@@ -88,7 +117,14 @@ public class Hero {
     private void startDamageEffect() {
         showingDamageEffect = true;
         damageEffectStartTime = System.currentTimeMillis();
-        damageHeroImage = tintImage(heroImage, new Color(255, 0, 0, 100));
+
+        // **Modification Start: Create damage image based on facing direction**
+        if (facingLeft && mirroredHeroImage != null) {
+            damageHeroImage = tintImage(mirroredHeroImage, new Color(255, 0, 0, 100));
+        } else {
+            damageHeroImage = tintImage(heroImage, new Color(255, 0, 0, 100));
+        }
+        // **Modification End**
     }
 
     public void setHealth(int h) {
@@ -116,5 +152,9 @@ public class Hero {
     // Add reset method for testing or restarting game
     public static void reset() {
         instance = null;
+    }
+
+    public boolean isFacingLeft() {
+        return facingLeft;
     }
 }

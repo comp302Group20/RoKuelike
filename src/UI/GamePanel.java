@@ -20,7 +20,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
-
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
 /**
  * The main panel for playing the game. Handles rendering, user input,
  * monster spawning/movement, and game-over conditions.
@@ -203,16 +204,42 @@ public class GamePanel extends JPanel {
     /**
      * Loads the DIED_HERO image from AssetPaths.
      */
+
+    public BufferedImage mirrorImage(BufferedImage original) {
+        AffineTransform transform = AffineTransform.getScaleInstance(-1, 1);
+        transform.translate(-original.getWidth(), 0);
+
+        BufferedImage mirrored = new BufferedImage(
+                original.getWidth(),
+                original.getHeight(),
+                original.getType()
+        );
+
+        Graphics2D g = mirrored.createGraphics();
+        g.drawImage(original, transform, null);
+        g.dispose();
+
+        return mirrored;
+    }
+
     private void loadDiedHeroImage() {
         try {
             URL diedHeroUrl = getClass().getClassLoader().getResource(AssetPaths.DIED_HERO.substring(1));
             if (diedHeroUrl != null) {
-                diedHeroImage = ImageIO.read(diedHeroUrl);
+                BufferedImage originalImage = ImageIO.read(diedHeroUrl);
+                if (!hero.isFacingLeft()) { // Mirror when facing right
+                    diedHeroImage = mirrorImage(originalImage); // Mirror for right-facing
+                } else {
+                    diedHeroImage = originalImage; // Original for left-facing
+                }
             }
         } catch (IOException e) {
             diedHeroImage = null;
+            e.printStackTrace(); // Optional: Log the exception for debugging
         }
     }
+
+
 
     /**
      * Loads the door image from AssetPaths.
@@ -653,6 +680,7 @@ public class GamePanel extends JPanel {
     private void checkHealthCondition() {
         if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
             heroDied = true;
+            loadDiedHeroImage(); // Load diedHeroImage based on current direction
             isPaused = true; // Disable movement
             System.out.println("Hero died");
 
@@ -673,12 +701,13 @@ public class GamePanel extends JPanel {
                     heroDied = false; // Reset heroDied flag
                     SwingUtilities.invokeLater(() -> repaint());
                 }
-            }, 4000); // 2000 milliseconds = 2 seconds
+            }, 2000); // 2000 milliseconds = 2 seconds
 
             // Repaint to show the died hero image immediately
             SwingUtilities.invokeLater(() -> repaint());
         }
     }
+
 
     /**
      * Draws the floor/wall tiles.
