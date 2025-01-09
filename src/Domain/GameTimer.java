@@ -35,6 +35,10 @@ public class GameTimer {
         }, 0, 1000);
     }
 
+    public double getRemainingTimePercentage(int totalTime) {
+        return (timeRemaining * 100.0) / totalTime;
+    }
+
     public void pause() {
         isPaused = true;
     }
