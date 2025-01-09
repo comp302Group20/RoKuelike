@@ -8,8 +8,12 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import Domain.GameTimer;
+
+
 public class GameController {
     private Hall hall;
+    private GameTimer gameTimer;
 
     public GameController(Hall hall) {
         this.hall = hall;
@@ -25,20 +29,52 @@ public class GameController {
                 }
             }
         }
+
         if (!allObjects.isEmpty()) {
             int idx = (int) (Math.random() * allObjects.size());
             allObjects.get(idx).hasRune = true;
         }
-        startPlayMode(grid, placedObjects);
+
+        int totalObjects = allObjects.size();
+        int startingTime = calculateStartingTime(totalObjects);
+
+        startPlayMode(grid, placedObjects, startingTime);
     }
 
-    private void startPlayMode(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
+    private int calculateStartingTime(int totalObjects) {
+        int baseTimePerObject = 5; // Time (in seconds) allocated per object
+        return totalObjects * baseTimePerObject;
+    }
+
+    private void startPlayMode(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects, int startingTime) {
         JFrame playModeFrame = new JFrame("Play Mode - " + hall.getName());
         playModeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         playModeFrame.setSize(1600, 900);
         playModeFrame.setLocationRelativeTo(null);
-        GamePanel gamePanel = new GamePanel(grid, placedObjects);
+
+        GamePanel gamePanel = new GamePanel(grid, placedObjects, this);
+        gameTimer = new GameTimer(startingTime); // Use dynamic starting time
+
+        gameTimer.start(
+                () -> gamePanel.updateTime(gameTimer.getTimeRemaining()), // Update UI
+                () -> gamePanel.triggerGameOver() // Trigger game over
+        );
+
         playModeFrame.add(gamePanel, BorderLayout.CENTER);
         playModeFrame.setVisible(true);
+    }
+
+
+
+    public void pauseGame() {
+        if (gameTimer != null) {
+            gameTimer.pause();
+        }
+    }
+
+    public void resumeGame() {
+        if (gameTimer != null) {
+            gameTimer.resume();
+        }
     }
 }
