@@ -1,5 +1,6 @@
 package UI;
 
+import Controller.GameController;
 import Domain.Hero;
 import Domain.Monster;
 import Domain.ArcherMonster;
@@ -122,14 +123,29 @@ public class GamePanel extends JPanel {
     private JButton pauseButton;
     private JButton exitButton;
 
+    private int timeRemaining; // Time remaining in seconds
+
+    public void updateTime(int timeRemaining) {
+        this.timeRemaining = timeRemaining;
+        repaint(); // Redraw the panel to reflect the time change
+    }
+
+    public void triggerGameOver() {
+        gameOver = true;
+        SwingUtilities.invokeLater(this::repaint); // Show game-over state
+    }
+
+    private GameController gameController;
+
     /**
      * Constructs a GamePanel with the given grid and placed objects.
      * @param g the grid of CellTypes (FLOOR or WALL)
      * @param p the array of placed objects
      */
-    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p) {
-        grid = g;
-        placedObjects = p;
+    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
+        this.grid = g;
+        this.placedObjects = p;
+        this.gameController = controller;
         setBackground(Color.BLACK);
         hero = new Hero(2 * cellSize, 2 * cellSize, cellSize, cellSize);
         monsters = new ArrayList<>();
@@ -601,6 +617,11 @@ public class GamePanel extends JPanel {
             hero.draw(g);
         }
 
+        // Display remaining time
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Time Remaining: " + timeRemaining + "s", 1000, 400);
+
         drawObjectsAboveHero(g);
         drawHearts(g);
     }
@@ -871,9 +892,15 @@ public class GamePanel extends JPanel {
         pauseButton.setFocusPainted(false);
         pauseButton.setContentAreaFilled(false);
         pauseButton.addActionListener(ev -> {
-            if (!gameOver && !heroDied) { // Allow pausing only if not game over or hero died
+            if (!gameOver && !heroDied) {
                 isPaused = !isPaused;
                 updatePauseButtonIcon(pauseButton);
+
+                if (isPaused) {
+                    gameController.pauseGame(); // Call instance method
+                } else {
+                    gameController.resumeGame(); // Call instance method
+                }
             }
         });
         setLayout(null);

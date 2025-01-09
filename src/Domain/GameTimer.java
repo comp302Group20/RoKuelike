@@ -1,0 +1,59 @@
+package Domain;
+
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class GameTimer {
+    private int timeRemaining; // in seconds
+    private Timer timer;
+    private boolean isPaused;
+
+    public GameTimer(int initialTime) {
+        this.timeRemaining = initialTime;
+        this.isPaused = false;
+    }
+
+    public void start(Runnable onTimeUpdate, Runnable onTimeEnd) {
+        if (timer != null) {
+            timer.cancel();
+        }
+
+        timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (!isPaused) {
+                    timeRemaining--;
+                    onTimeUpdate.run();
+
+                    if (timeRemaining <= 0) {
+                        timer.cancel();
+                        onTimeEnd.run();
+                    }
+                }
+            }
+        }, 0, 1000);
+    }
+
+    public void pause() {
+        isPaused = true;
+    }
+
+    public void resume() {
+        isPaused = false;
+    }
+
+    public void stop() {
+        if (timer != null) {
+            timer.cancel();
+        }
+    }
+
+    public int getTimeRemaining() {
+        return timeRemaining;
+    }
+
+    public void addTime(int seconds) {
+        timeRemaining += seconds;
+    }
+}
