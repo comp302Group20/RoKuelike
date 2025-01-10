@@ -96,6 +96,7 @@ public class GamePanel extends JPanel {
     private Timer monsterSpawnerTimer;
     private Timer monsterMovementTimer;
     private Timer gameOverTimer; // Timer for game over transition
+    private Timer redirectTimer; // Timer for redirecting to main menu
 
     /**
      * True if the game is paused; false otherwise.
@@ -142,6 +143,7 @@ public class GamePanel extends JPanel {
      * Constructs a GamePanel with the given grid and placed objects.
      * @param g the grid of CellTypes (FLOOR or WALL)
      * @param p the array of placed objects
+     * @param controller the GameController instance
      */
     public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
         this.grid = g;
@@ -579,7 +581,11 @@ public class GamePanel extends JPanel {
 
         if (gameOver && gameOverImage != null) {
             hideButtonsIfGameOver();
-            g.drawImage(gameOverImage, 0, 0, getWidth(), getHeight(), null);
+            int imgWidth = 900;
+            int imgHeight = 900;
+            int x = (getWidth() - imgWidth) / 2;
+            int y = (getHeight() - imgHeight) / 2;
+            g.drawImage(gameOverImage, x, y, imgWidth, imgHeight, null);
             return;
         }
 
@@ -716,6 +722,19 @@ public class GamePanel extends JPanel {
                     gameOver = true;
                     heroDied = false; // Reset heroDied flag
                     SwingUtilities.invokeLater(() -> repaint());
+
+                    // Start a 3-second timer to redirect to main menu
+                    redirectTimer = new Timer(true);
+                    redirectTimer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            SwingUtilities.invokeLater(() -> {
+                                JFrame mm = new RokueLikeMainMenu();
+                                mm.setVisible(true);
+                                SwingUtilities.getWindowAncestor(GamePanel.this).dispose();
+                            });
+                        }
+                    }, 3000); // 3000 milliseconds = 3 seconds
                 }
             }, 2000); // 2000 milliseconds = 2 seconds
 
