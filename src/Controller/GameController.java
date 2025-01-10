@@ -22,6 +22,9 @@ public class GameController {
     // Keep track of how many halls have been completed (0 to 4).
     private static int gamesCompleted = 0;
 
+    // This reflects the "current" hall we are building/playing (1-based).
+    private int currentHallNumber;
+
     // Reference to the playModeFrame so we can dispose it
     private JFrame playModeFrame;
 
@@ -41,6 +44,10 @@ public class GameController {
 
     public GameController(Hall hall) {
         this.hall = hall;
+        // currentHallNumber is always gamesCompleted + 1
+        // e.g., if 0 halls completed, we’re on hall #1
+        this.currentHallNumber = gamesCompleted + 1;
+
         new BuildModeController(hall, this);
     }
 
@@ -59,21 +66,52 @@ public class GameController {
             }
         }
 
-        // Check if it meets the Hall's minimum requirement
+        // If not enough objects, show "Not enough objects in Earth/Air/Water/Fire Hall"
         if (!hall.validateObjectCount(placedObjectCount)) {
+            String namehall="";
+            if(currentHallNumber==1){
+                namehall="Earth Hall";
+            }
+            else if(currentHallNumber==2){
+                namehall="Air Hall";
+            }
+            else if(currentHallNumber==3){
+                namehall="Water Hall";
+            }
+            else if(currentHallNumber==4){
+                namehall="Fire Hall";
+            }
+            else {
+                namehall="Unknown Hall";
+            }
+
+
             JOptionPane.showMessageDialog(null,
-                    "Not enough objects in " + hall.getName() + "!\n" +
+
+                    "Not enough objects in " + namehall + "!\n" +
                             "You need at least " + hall.getMinObjectCount() + " objects.");
             return; // Do not proceed to play mode
         }
 
-        // Optionally hide the rune in a random object, but that is already
-        // done in your code if desired. (Or you can do it here.)
-
-        int totalObjects = placedObjectCount;
-        int startingTime = calculateStartingTime(totalObjects);
-
+        int startingTime = calculateStartingTime(placedObjectCount);
         startPlayMode(grid, placedObjects, startingTime);
+    }
+
+    /**
+     * Returns the proper name for each hall number:
+     *  1 -> Earth Hall
+     *  2 -> Air Hall
+     *  3 -> Water Hall
+     *  4 -> Fire Hall
+     */
+    private String getHallDescriptor(int hallNumber) {
+        switch (hallNumber) {
+            case 1: return "Earth Hall";
+            case 2: return "Air Hall";
+            case 3: return "Water Hall";
+            case 4: return "Fire Hall";
+            default: return "??? Hall";
+        }
     }
 
     private int calculateStartingTime(int totalObjects) {
@@ -85,7 +123,7 @@ public class GameController {
     private void startPlayMode(BuildModePanel.CellType[][] grid,
                                BuildModePanel.PlacedObject[][] placedObjects,
                                int startingTime) {
-        playModeFrame = new JFrame("Play Mode - " + hall.getName());
+        playModeFrame = new JFrame("Play Mode - " + getHallDescriptor(currentHallNumber));
         playModeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         playModeFrame.setSize(1600, 900);
         playModeFrame.setLocationRelativeTo(null);
@@ -142,7 +180,10 @@ public class GameController {
         BufferedImage completionImage = loadImage(COMPLETED_IMAGES[gamesCompleted - 1]);
 
         // Create a responsive image panel
-        ResponsiveImagePanel imagePanel = new ResponsiveImagePanel(completionImage, "Hall " + gamesCompleted + " Completed!");
+        ResponsiveImagePanel imagePanel = new ResponsiveImagePanel(
+                completionImage,
+                "Hall " + gamesCompleted + " Completed!"
+        );
         completionFrame.add(imagePanel, BorderLayout.CENTER);
         completionFrame.setVisible(true);
 
@@ -163,8 +204,25 @@ public class GameController {
         if (gamesCompleted < 4) {
             // Prepare the next hall with the correct min object count
             int nextMin = MIN_OBJECTS[gamesCompleted]; // gamesCompleted is now 1..3 for next hall
+            String namehall="";
+            if(gamesCompleted+1==1){
+                namehall="Earth Hall";
+            }
+            else if(gamesCompleted+1==2){
+                namehall="Air Hall";
+            }
+            else if(gamesCompleted+1==3){
+                namehall="Water Hall";
+            }
+            else if(gamesCompleted+1==4){
+                namehall="Fire Hall";
+            }
+            else {
+                namehall="Unknown Hall";
+            }
             Hall nextHall = new Hall(
-                    "Hall Run #" + (gamesCompleted + 1),
+                    // e.g. "Hall Run #2", "Hall Run #3", etc.
+                    namehall,
                     hall.getRows(),
                     hall.getCols(),
                     nextMin
