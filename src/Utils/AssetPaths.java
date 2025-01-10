@@ -52,4 +52,10 @@ public class AssetPaths {
     public static final String EXIT_GAME = getPath("/exitgame.png");
     public static final String RESUME_BUTTON = getPath("/resumegame.png");
     public static final String DIED_HERO = getPath("/diedhero.png");
+    public static final String COMPLETED1 = getPath("/completed1.png");
+    public static final String COMPLETED2 = getPath("/completed2.png");
+    public static final String COMPLETED3 = getPath("/completed3.png");
+    public static final String COMPLETED4 = getPath("/completed4.png");
+    public static final String CONGRATULATIONS= getPath("/congratulations.png");
+
 }

@@ -23,6 +23,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
+
 /**
  * The main panel for playing the game. Handles rendering, user input,
  * monster spawning/movement, and game-over conditions.
@@ -220,7 +221,6 @@ public class GamePanel extends JPanel {
     /**
      * Loads the DIED_HERO image from AssetPaths.
      */
-
     public BufferedImage mirrorImage(BufferedImage original) {
         AffineTransform transform = AffineTransform.getScaleInstance(-1, 1);
         transform.translate(-original.getWidth(), 0);
@@ -254,8 +254,6 @@ public class GamePanel extends JPanel {
             e.printStackTrace(); // Optional: Log the exception for debugging
         }
     }
-
-
 
     /**
      * Loads the door image from AssetPaths.
@@ -471,10 +469,8 @@ public class GamePanel extends JPanel {
                     for (Monster m : monsters) {
                         m.update();
                     }
-
                     // **Add this line to check health after monsters move**
                     checkHealthCondition();
-
                     repaint();
                 }
             }
@@ -655,26 +651,25 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Checks if the hero has reached the door row & col and discovered the rune; ends the game if so.
+     * Checks if the hero has reached the door row & col and discovered the rune;
+     * if so, we call the GameController for next steps (new game or final game over).
      */
     private void checkDoorCondition() {
         int hr = hero.getY() / cellSize;
         int hc = hero.getX() / cellSize;
-        if (hr == DOOR_ROW-1 && hc == DOOR_COL) {
+        if (hr == DOOR_ROW - 1 && hc == DOOR_COL) {
             if (heroHasRune()) {
-                gameOver = true;
-                System.out.println("Hero escaped with the rune");
-
-                // **Stop all timers to prevent further game actions**
+                // Instead of setting gameOver = true,
+                // we now call the GameController to proceed with a new game or final game over.
+                // First cancel timers so nothing else moves:
                 if (monsterSpawnerTimer != null) {
                     monsterSpawnerTimer.cancel();
                 }
                 if (monsterMovementTimer != null) {
                     monsterMovementTimer.cancel();
                 }
-
-                // **Repaint immediately to show the game-over screen**
-                SwingUtilities.invokeLater(() -> repaint());
+                System.out.println("Hero escaped with the rune!");
+                gameController.onHeroEscaped();
             }
         }
     }
@@ -728,7 +723,6 @@ public class GamePanel extends JPanel {
             SwingUtilities.invokeLater(() -> repaint());
         }
     }
-
 
     /**
      * Draws the floor/wall tiles.
