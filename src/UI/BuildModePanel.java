@@ -44,6 +44,7 @@ public class BuildModePanel extends JPanel {
         initializeImages();
         initializeUI();
         loadObjects();
+
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -92,14 +93,39 @@ public class BuildModePanel extends JPanel {
         });
     }
 
+    /**
+     * Returns the 2D array of cell types (Floor or Wall).
+     */
     public CellType[][] getGrid() {
         return grid;
     }
 
+    /**
+     * Returns the 2D array of placed objects.
+     */
     public PlacedObject[][] getPlacedObjectsGrid() {
         return placedObjectsGrid;
     }
 
+    /**
+     * Returns how many objects have been placed on the grid.
+     */
+    public int getNumberOfPlacedObjects() {
+        int count = 0;
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                if (placedObjectsGrid[r][c] != null) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Initialize all cells as FLOOR and set walls around the perimeter
+     * (based on the original code/logic for walls).
+     */
     private void initializeGrid() {
         // Initialize all cells as FLOOR
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -247,48 +273,48 @@ public class BuildModePanel extends JPanel {
     }
 
     /**
-     * Modified placeObject method:
-     * - Double-height objects now occupy only one cell logically.
-     * - They are visually rendered as double-height without marking the cell above as occupied.
+     * Place the selected object in the grid cell. Double-height objects only occupy this one cell logically.
      */
     private void placeObject(int gridRow, int gridCol) {
         BufferedImage selImage = availableObjects.get(selectedObjectIndex);
         boolean selDouble = isDoubleHeight.get(selectedObjectIndex);
 
-        // Check placement validity
+        // If it's a double-height object, ensure there's space above for it visually,
+        // but do not mark the upper cell as occupied.
         if (selDouble) {
             if (gridRow <= 0) {
-                JOptionPane.showMessageDialog(BuildModePanel.this, "Not enough space to place a double-height object here.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(BuildModePanel.this,
+                        "Not enough space to place a double-height object here.",
+                        "Placement Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             if (isWallCell(gridRow - 1, gridCol)) {
-                JOptionPane.showMessageDialog(BuildModePanel.this, "Cannot place double-height object here. Space above is a wall.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(BuildModePanel.this,
+                        "Cannot place double-height object here. Space above is a wall.",
+                        "Placement Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            // Optionally, check if the space above has a wall but do not mark it as occupied
         }
 
         // Check if the target cell is already occupied
         if (placedObjectsGrid[gridRow][gridCol] != null) {
-            JOptionPane.showMessageDialog(BuildModePanel.this, "Cannot place object here. Space is already occupied.", "Placement Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(BuildModePanel.this,
+                    "Cannot place object here. Space is already occupied.",
+                    "Placement Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         // Place the object
         placedObjectsGrid[gridRow][gridCol] = new PlacedObject(selImage, gridRow, gridCol, selDouble);
-        // Do not mark the cell above as occupied
     }
 
     /**
-     * Modified removePlacedObject method:
-     * - Only clears the target cell, regardless of whether the object is double-height.
+     * Remove the object from the grid cell, regardless of double-height.
      */
     private void removePlacedObject(int gridRow, int gridCol) {
         PlacedObject obj = placedObjectsGrid[gridRow][gridCol];
         if (obj == null) return;
-
         placedObjectsGrid[gridRow][gridCol] = null;
-        // Do not clear the cell above
     }
 
     @Override
@@ -333,8 +359,7 @@ public class BuildModePanel extends JPanel {
     }
 
     /**
-     * Modified drawPlacedObjects method:
-     * - Double-height objects are rendered as tall as before but occupy only one grid cell logically.
+     * Draws the placed objects. Double-height objects appear taller but occupy one grid cell logically.
      */
     private void drawPlacedObjects(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -347,7 +372,7 @@ public class BuildModePanel extends JPanel {
                     int drawH = obj.isDouble ? cellSize * 2 : cellSize;
 
                     if (obj.isDouble) {
-                        // Position the image so that the base is in the current cell
+                        // Position so that the base is in the current cell
                         drawY -= (drawH - cellSize);
                     }
 

@@ -19,7 +19,7 @@ public class GameController {
     private Hall hall;
     private GameTimer gameTimer;
 
-    // Keep track of how many halls have been completed
+    // Keep track of how many halls have been completed (0 to 4).
     private static int gamesCompleted = 0;
 
     // Reference to the playModeFrame so we can dispose it
@@ -33,28 +33,44 @@ public class GameController {
             AssetPaths.COMPLETED4
     };
 
+    /**
+     * Minimum objects required for each hall:
+     * 1st hall -> 6, 2nd -> 9, 3rd -> 13, 4th -> 17
+     */
+    private static final int[] MIN_OBJECTS = {6, 9, 13, 17};
+
     public GameController(Hall hall) {
         this.hall = hall;
         new BuildModeController(hall, this);
     }
 
+    /**
+     * Called after the user presses "Finish Building" in build mode.
+     * We must enforce the min object count before starting the play mode.
+     */
     public void onBuildModeFinished(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
-        List<BuildModePanel.PlacedObject> allObjects = new ArrayList<>();
+        // Count how many objects were placed
+        int placedObjectCount = 0;
         for (int r = 0; r < placedObjects.length; r++) {
             for (int c = 0; c < placedObjects[0].length; c++) {
                 if (placedObjects[r][c] != null) {
-                    allObjects.add(placedObjects[r][c]);
+                    placedObjectCount++;
                 }
             }
         }
 
-        // Optionally hide the rune in a random object
-        if (!allObjects.isEmpty()) {
-            int idx = (int) (Math.random() * allObjects.size());
-            allObjects.get(idx).hasRune = true;
+        // Check if it meets the Hall's minimum requirement
+        if (!hall.validateObjectCount(placedObjectCount)) {
+            JOptionPane.showMessageDialog(null,
+                    "Not enough objects in " + hall.getName() + "!\n" +
+                            "You need at least " + hall.getMinObjectCount() + " objects.");
+            return; // Do not proceed to play mode
         }
 
-        int totalObjects = allObjects.size();
+        // Optionally hide the rune in a random object, but that is already
+        // done in your code if desired. (Or you can do it here.)
+
+        int totalObjects = placedObjectCount;
         int startingTime = calculateStartingTime(totalObjects);
 
         startPlayMode(grid, placedObjects, startingTime);
@@ -78,8 +94,8 @@ public class GameController {
         gameTimer = new GameTimer(startingTime);
 
         gameTimer.start(
-                () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),  // UI update
-                () -> gamePanel.triggerGameOver()                          // Time ran out
+                () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),  // UI update callback
+                () -> gamePanel.triggerGameOver()                          // Time ran out callback
         );
 
         playModeFrame.add(gamePanel, BorderLayout.CENTER);
@@ -88,8 +104,8 @@ public class GameController {
 
     /**
      * Called by GamePanel when the hero escapes successfully.
-     * After each hall, show the "completedN.png" for 3 seconds.
-     * Then, if it’s the 4th hall, also show "congratulations.png" before exiting.
+     * After each hall, show the "completedN.png" for 3 seconds,
+     * then proceed to the next hall or final screen.
      */
     public void onHeroEscaped() {
         // Close the old game frame
@@ -97,7 +113,7 @@ public class GameController {
             playModeFrame.dispose();
         }
 
-        // Increment count of halls completed
+        // Increment count of halls completed (1..4)
         gamesCompleted++;
 
         // Show the corresponding "completed" image for 3 seconds, then move on
@@ -141,19 +157,19 @@ public class GameController {
 
     /**
      * After showing completed1-3, proceed to next hall.
-     * After completed4, display "congratulations.png" instead of a text message, then exit.
+     * After completed4, display "congratulations.png" then exit.
      */
     private void finishOrExit() {
         if (gamesCompleted < 4) {
-            // Create a new Hall using the same dimensions, different name
+            // Prepare the next hall with the correct min object count
+            int nextMin = MIN_OBJECTS[gamesCompleted]; // gamesCompleted is now 1..3 for next hall
             Hall nextHall = new Hall(
                     "Hall Run #" + (gamesCompleted + 1),
                     hall.getRows(),
                     hall.getCols(),
-                    hall.getMinObjectCount()
+                    nextMin
             );
             new GameController(nextHall);
-
         } else {
             // We've completed the 4th hall; show the congratulations.png
             showCongratulationsScreen();

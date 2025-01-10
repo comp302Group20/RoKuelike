@@ -27,7 +27,9 @@ public class BuildModeController {
         frame.add(buildPanel, BorderLayout.CENTER);
         JButton finishBuildBtn = new JButton("Finish Building");
         finishBuildBtn.addActionListener(e -> {
-            if (hall.validateObjectCount()) {
+            int numberOfObjects = buildPanel.getNumberOfPlacedObjects();
+
+            if (hall.validateObjectCount(numberOfObjects)) {
                 frame.dispose();
                 parentController.onBuildModeFinished(buildPanel.getGrid(), buildPanel.getPlacedObjectsGrid());
             } else {
