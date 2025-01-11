@@ -1,7 +1,13 @@
 package UI;
 
+import Controller.GameController;
+import Domain.Hero;
+import Domain.Monster;
+import Domain.ArcherMonster;
+import Domain.FighterMonster;
+import Domain.WizardMonster;
+import UI.BuildModePanel.PlacedObject;
 import Utils.AssetPaths;
-
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -11,581 +17,732 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 import java.util.List;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Timer;
-
+import java.util.TimerTask;
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+/**
+ * The main panel for playing the game. Handles rendering, user input,
+ * monster spawning/movement, and game-over conditions.
+ */
 public class GamePanel extends JPanel {
-    // References to the "final" layout from BuildModePanel
-    private CellType[][] grid;                             // For walls/floors
-    private BuildModePanel.PlacedObject[][] placedObjects; // For placed objects
 
-    // Grid dimensions (matches BuildModePanel)
+    /**
+     * The grid representing the hall layout (FLOOR vs WALL).
+     */
+    private BuildModePanel.CellType[][] grid;
+
+    /**
+     * The 2D array of placed objects (chests, boxes, etc.).
+     */
+    private PlacedObject[][] placedObjects;
+
+    /**
+     * Number of rows in the grid.
+     */
     private static final int GRID_ROWS = 13;
+
+    /**
+     * Number of columns in the grid.
+     */
     private static final int GRID_COLS = 13;
+
+    /**
+     * The size (in pixels) of each grid cell.
+     */
     private int cellSize = 64;
 
-    // Floor/wall images
+    /**
+     * Images for floor and walls.
+     */
     private BufferedImage floorImage;
     private BufferedImage horizontalWallImage;
     private BufferedImage leftVerticalWallImage;
     private BufferedImage rightVerticalWallImage;
 
-    // Hero, monsters, etc.
-    private BufferedImage heroImage;
+    /**
+     * Images for the pause/resume/exit buttons, the rune, door, game-over screen, died hero, and hearts.
+     */
     private BufferedImage pauseButtonImage;
     private BufferedImage resumeButtonImage;
     private BufferedImage exitButtonImage;
-    private List<BufferedImage> monsterImages;
-    private Point heroPosition;
-    private List<Point> monsterPositions;
-    private List<Integer> spawnedMonsterTypes;
+    private BufferedImage runeImage;
+    private BufferedImage doorImage;
+    private BufferedImage gameOverImage;
+    private BufferedImage diedHeroImage; // New image for died hero
+    private BufferedImage heartImage;
+
+    /**
+     * The list of monsters on the board.
+     */
+    private List<Monster> monsters;
+
+    /**
+     * The hero controlled by the player.
+     */
+    private Hero hero;
+
+    /**
+     * For random operations (monster spawn location, etc.).
+     */
     private Random random;
+
+    /**
+     * Timers for spawning and moving monsters.
+     */
     private Timer monsterSpawnerTimer;
     private Timer monsterMovementTimer;
+    private Timer gameOverTimer; // Timer for game over transition
+
+    /**
+     * True if the game is paused; false otherwise.
+     */
     private boolean isPaused = false;
     private PausePopUp pausePopUp;
 
-    // KEY-related
-    private BuildModePanel.PlacedObject keyObject; // the object that has the key
-    private BufferedImage keyImage;                // loaded from (10,10,16,16)
-    private boolean foundKey = false;              // whether the key is revealed
+    /**
+     * True if the game is over; false otherwise.
+     */
+    private boolean gameOver = false;
 
     /**
-     * New constructor that takes the BuildModePanel's grid data.
+     * True if the hero has died and is in the 2-second death animation.
      */
-    public GamePanel(CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
-        this.grid = grid;
-        this.placedObjects = placedObjects;
+    private boolean heroDied = false;
 
-        setBackground(new Color(75, 30, 30));
-        // Hero starts at row=2, col=2 (inside the walls)
-        this.heroPosition = new Point(2 * cellSize, 2 * cellSize);
-        this.monsterPositions = new ArrayList<>();
-        this.spawnedMonsterTypes = new ArrayList<>();
-        this.monsterImages = new ArrayList<>();
-        this.random = new Random();
+    /**
+     * The row and column where the door is placed.
+     */
+    private static final int DOOR_ROW = 11;
+    private static final int DOOR_COL = 6;
 
-        // Load hero, monster images, pause/resume buttons, etc.
-        initializeHeroImage();
-        initializeMonsterImages();
-        initializeButtonImages();
+    /**
+     * References to the pause and exit buttons so we can hide them at game-over.
+     */
+    private JButton pauseButton;
+    private JButton exitButton;
 
-        // Load the same floor/wall images used in BuildModePanel
+    private int timeRemaining; // Time remaining in seconds
+
+    public void updateTime(int timeRemaining) {
+        this.timeRemaining = timeRemaining;
+        repaint(); // Redraw the panel to reflect the time change
+    }
+
+    public void triggerGameOver() {
+        gameOver = true;
+        SwingUtilities.invokeLater(this::repaint); // Show game-over state
+    }
+
+    private GameController gameController;
+
+    /**
+     * Constructs a GamePanel with the given grid and placed objects.
+     * @param g the grid of CellTypes (FLOOR or WALL)
+     * @param p the array of placed objects
+     */
+    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
+        this.grid = g;
+        this.placedObjects = p;
+        this.gameController = controller;
+        setBackground(Color.BLACK);
+        hero = new Hero(2 * cellSize, 2 * cellSize, cellSize, cellSize);
+        monsters = new ArrayList<>();
+        random = new Random();
+
+        hideRuneInRandomObject();
+        loadDoorImage();
+        placeDoorAsObject();
+        loadGameOverImage();
+        loadDiedHeroImage(); // Load DIED_HERO image
+        loadHeartImage();
         initializeFloorWallImages();
+        initializeButtonImages();
+        loadRuneImage();
 
-        // Load the key image from x=10, y=10, width=16, height=16
-        initializeKeyImage();
+        createPauseButton();
+        createExitButton();
 
-        // Randomly choose one placed object (if any) to hold the key
-        randomlyAssignKeyObject();
-
-        // Start timers
         startMonsterSpawner();
         startMonsterMovement();
-
-        // Create pause/exit buttons
-        initializePauseButton();
-        initializeExitButton();
-
-        // Mouse to "click" objects and potentially reveal the key
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (isPaused) return;
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    handleObjectClick(e.getX(), e.getY());
-                }
-            }
-        });
 
         setFocusable(true);
         requestFocusInWindow();
 
-        // Keyboard control
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (isPaused) return;
-
-                // Attempt to move hero by 64 pixels in one direction
+                if (isPaused || gameOver || heroDied) return; // Disable movement if paused, game over, or hero died
                 int step = cellSize;
-                Point newHeroPosition = new Point(heroPosition);
-                switch (e.getKeyCode()) {
-                    case KeyEvent.VK_LEFT:
-                        newHeroPosition.translate(-step, 0);
-                        break;
-                    case KeyEvent.VK_RIGHT:
-                        newHeroPosition.translate(step, 0);
-                        break;
-                    case KeyEvent.VK_UP:
-                        newHeroPosition.translate(0, -step);
-                        break;
-                    case KeyEvent.VK_DOWN:
-                        newHeroPosition.translate(0, step);
-                        break;
-                }
+                int dx = 0;
+                int dy = 0;
+                if (e.getKeyCode() == KeyEvent.VK_LEFT)  dx = -step;
+                if (e.getKeyCode() == KeyEvent.VK_RIGHT) dx =  step;
+                if (e.getKeyCode() == KeyEvent.VK_UP)    dy = -step;
+                if (e.getKeyCode() == KeyEvent.VK_DOWN)  dy =  step;
 
-                // If the target cell is free (not wall, not object) and no monsters
-                if (isCellFree(newHeroPosition) && !isCollisionWithMonsters(newHeroPosition)) {
-                    heroPosition.setLocation(newHeroPosition);
+                int oldX = hero.getX();
+                int oldY = hero.getY();
+                hero.move(dx, dy);
+
+                Point np = new Point(hero.getX(), hero.getY());
+                if (!canHeroMove(np)) {
+                    hero.setPosition(oldX, oldY);
                 }
+                checkDoorCondition();
+                checkHealthCondition();
                 repaint();
+            }
+        });
+
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (isPaused || gameOver || heroDied) return; // Disable actions if paused, game over, or hero died
+                if (e.getButton() != MouseEvent.BUTTON1) return;
+
+                int mx = e.getX();
+                int my = e.getY();
+                PlacedObject obj = getClickedObject(mx, my);
+                if (obj != null && obj.hasRune) {
+                    int hr = hero.getY() / cellSize;
+                    int hc = hero.getX() / cellSize;
+                    if (Math.abs(hr - obj.gridRow) + Math.abs(hc - obj.gridCol) == 1) {
+                        obj.runeVisible = true;
+                        System.out.println("Rune discovered");
+                    }
+                }
             }
         });
     }
 
     /**
-     * Load the key image from the sprite sheet at (10,10,16,16).
+     * Loads the DIED_HERO image from AssetPaths.
      */
-    private void initializeKeyImage() {
+
+    public BufferedImage mirrorImage(BufferedImage original) {
+        AffineTransform transform = AffineTransform.getScaleInstance(-1, 1);
+        transform.translate(-original.getWidth(), 0);
+
+        BufferedImage mirrored = new BufferedImage(
+                original.getWidth(),
+                original.getHeight(),
+                original.getType()
+        );
+
+        Graphics2D g = mirrored.createGraphics();
+        g.drawImage(original, transform, null);
+        g.dispose();
+
+        return mirrored;
+    }
+
+    private void loadDiedHeroImage() {
         try {
-            URL resourceUrl = getClass().getClassLoader().getResource(AssetPaths.SPRITESHEET_2.substring(1));
-            if (resourceUrl == null) {
-                throw new IOException("Sprite sheet not found: " + AssetPaths.SPRITESHEET_2);
+            URL diedHeroUrl = getClass().getClassLoader().getResource(AssetPaths.DIED_HERO.substring(1));
+            if (diedHeroUrl != null) {
+                BufferedImage originalImage = ImageIO.read(diedHeroUrl);
+                if (!hero.isFacingLeft()) { // Mirror when facing right
+                    diedHeroImage = mirrorImage(originalImage); // Mirror for right-facing
+                } else {
+                    diedHeroImage = originalImage; // Original for left-facing
+                }
             }
-            BufferedImage spriteSheet = ImageIO.read(resourceUrl);
-
-            keyImage = spriteSheet.getSubimage(13*16, 11*16, 16, 16);
-
         } catch (IOException e) {
-            System.err.println("Error loading key image: " + e.getMessage());
-            // fallback
-            keyImage = createFallbackImage();
+            diedHeroImage = null;
+            e.printStackTrace(); // Optional: Log the exception for debugging
+        }
+    }
+
+
+
+    /**
+     * Loads the door image from AssetPaths.
+     */
+    private void loadDoorImage() {
+        try {
+            URL doorUrl = getClass().getClassLoader().getResource(AssetPaths.DOOR_IMAGE.substring(1));
+            if (doorUrl != null) {
+                doorImage = ImageIO.read(doorUrl);
+            }
+        } catch (IOException e) {
+            doorImage = null;
         }
     }
 
     /**
-     * Randomly pick one placed object (if any) as the key holder.
+     * Places the door as a PlacedObject at DOOR_ROW, DOOR_COL if we have a door image.
      */
-    private void randomlyAssignKeyObject() {
-        List<BuildModePanel.PlacedObject> objectList = new ArrayList<>();
-        // Gather all placed objects
+    private void placeDoorAsObject() {
+        if (doorImage != null) {
+            placedObjects[DOOR_ROW][DOOR_COL] = new BuildModePanel.PlacedObject(
+                    toBufferedImage(doorImage),
+                    DOOR_ROW,
+                    DOOR_COL,
+                    false
+            );
+        }
+    }
+
+    /**
+     * Converts a general Image to a BufferedImage for consistent usage.
+     * @param img the Image to convert
+     * @return a BufferedImage version of img
+     */
+    private BufferedImage toBufferedImage(Image img) {
+        if (img instanceof BufferedImage) {
+            return (BufferedImage) img;
+        }
+        BufferedImage b = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = b.createGraphics();
+        g2d.drawImage(img, 0, 0, null);
+        g2d.dispose();
+        return b;
+    }
+
+    /**
+     * Loads the heart image from AssetPaths.
+     */
+    private void loadHeartImage() {
+        try {
+            URL heartUrl = getClass().getClassLoader().getResource(AssetPaths.HEART.substring(1));
+            if (heartUrl == null) throw new IOException();
+            heartImage = ImageIO.read(heartUrl);
+        } catch (IOException e) {
+            heartImage = null;
+        }
+    }
+
+    /**
+     * Randomly hides the rune in one of the placed objects.
+     */
+    private void hideRuneInRandomObject() {
+        List<BuildModePanel.PlacedObject> objs = new ArrayList<>();
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                if (placedObjects[r][c] != null) {
+                    objs.add(placedObjects[r][c]);
+                }
+            }
+        }
+        if (!objs.isEmpty()) {
+            int idx = random.nextInt(objs.size());
+            objs.get(idx).hasRune = true;
+        }
+    }
+
+    /**
+     * Teleports the rune from its current object to another random object, if the wizard monster triggers it.
+     */
+    public void teleportRuneRandomly() {
+        if (gameOver) return;
+        List<BuildModePanel.PlacedObject> allObjects = new ArrayList<>();
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
                 BuildModePanel.PlacedObject obj = placedObjects[r][c];
                 if (obj != null) {
-                    objectList.add(obj);
+                    allObjects.add(obj);
                 }
             }
         }
-
-        if (!objectList.isEmpty()) {
-            // pick a random object to hold the key
-            int idx = random.nextInt(objectList.size());
-            keyObject = objectList.get(idx);
-        } else {
-            keyObject = null;
-        }
-    }
-
-    /**
-     * Checks if a pixel-based position is inside the grid, not a wall, and not occupied by a placed object.
-     */
-    private boolean isCellFree(Point p) {
-        int col = p.x / cellSize;
-        int row = p.y / cellSize;
-
-        // 1) Check bounds
-        if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
-            return false;
-        }
-        // 2) Check if it's a wall
-        if (grid[row][col] == CellType.WALL) {
-            return false;
-        }
-        // 3) Check if there's a placed object in that cell
-        if (placedObjects[row][col] != null) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Called when the user clicks in the game panel.
-     * We see if the user clicked on a cell that has an object.
-     * If that object = keyObject, and hero is 1 cell away (orthogonally), reveal the key.
-     */
-    private void handleObjectClick(int mouseX, int mouseY) {
-        // Convert click to cell
-        if (mouseX < 0 || mouseX >= GRID_COLS * cellSize
-                || mouseY < 0 || mouseY >= GRID_ROWS * cellSize) {
-            return;
-        }
-        int clickCol = mouseX / cellSize;
-        int clickRow = mouseY / cellSize;
-
-        // If there's no object here, do nothing
-        BuildModePanel.PlacedObject clickedObj = placedObjects[clickRow][clickCol];
-        if (clickedObj == null) {
-            return;
-        }
-
-        // Is this the key object?
-        if (clickedObj == keyObject && !foundKey) {
-            // Check if hero is 1 cell away (orthogonally)
-            int heroRow = heroPosition.y / cellSize;
-            int heroCol = heroPosition.x / cellSize;
-
-            // difference in row + difference in col = 1 => adjacent orth
-            int rowDiff = Math.abs(heroRow - clickRow);
-            int colDiff = Math.abs(heroCol - clickCol);
-
-            if ((rowDiff + colDiff) == 1) {
-                // Hero is adjacent => reveal the key
-                foundKey = true;
-                repaint();
+        BuildModePanel.PlacedObject runeHolder = null;
+        for (BuildModePanel.PlacedObject po : allObjects) {
+            if (po.hasRune) {
+                runeHolder = po;
+                break;
             }
         }
+        if (runeHolder == null) return;
+        runeHolder.hasRune = false;
+        runeHolder.runeVisible = false;
+        if (!allObjects.isEmpty()) {
+            int idx = random.nextInt(allObjects.size());
+            allObjects.get(idx).hasRune = true;
+        }
+        repaint();
     }
 
     /**
-     * Load the same floor/wall sub-images that BuildModePanel uses.
+     * Loads the game-over image from AssetPaths.
      */
-    private void initializeFloorWallImages() {
+    private void loadGameOverImage() {
         try {
-            URL resourceUrl = getClass().getClassLoader().getResource(AssetPaths.SPRITESHEET.substring(1));
-            if (resourceUrl == null) {
-                throw new IOException("Sprite sheet not found: " + AssetPaths.SPRITESHEET);
-            }
-
-            BufferedImage spriteSheet = ImageIO.read(resourceUrl);
-
-            // Floor
-            int[] floorCoords = AssetPaths.FLOOR_TILE;
-            floorImage = spriteSheet.getSubimage(
-                    floorCoords[0], floorCoords[1],
-                    floorCoords[2], floorCoords[3]
-            );
-
-            // Walls
-            horizontalWallImage = spriteSheet.getSubimage(17 * 16, 16, 16, 16);
-            leftVerticalWallImage = spriteSheet.getSubimage(16 * 16, 16, 16, 16);
-            rightVerticalWallImage = spriteSheet.getSubimage(18 * 16, 16, 16, 16);
-
-        } catch (IOException e) {
-            System.err.println("Error loading floor/wall images: " + e.getMessage());
-            e.printStackTrace();
-            // Fallback images if loading fails
-            floorImage = createFallbackImage();
-            horizontalWallImage = createFallbackImage();
-            leftVerticalWallImage = createFallbackImage();
-            rightVerticalWallImage = createFallbackImage();
-        }
-    }
-
-    private void initializeHeroImage() {
-        try {
-            URL resourceUrl = getClass().getClassLoader().getResource(AssetPaths.HERO.substring(1));
-            if (resourceUrl == null) {
-                throw new IOException("Hero image resource not found: " + AssetPaths.HERO);
-            }
-            heroImage = ImageIO.read(resourceUrl);
-            if (heroImage == null) {
-                throw new IOException("Failed to load hero image: " + AssetPaths.HERO);
+            URL go = getClass().getClassLoader().getResource(AssetPaths.GAME_OVER.substring(1));
+            if (go != null) {
+                gameOverImage = ImageIO.read(go);
             }
         } catch (IOException e) {
-            System.err.println("Error loading hero image: " + e.getMessage());
-            heroImage = createFallbackImage();
+            gameOverImage = null;
         }
     }
 
-    private void initializeMonsterImages() {
-        monsterImages = new ArrayList<>();
-        String[] monsterPaths = {AssetPaths.ARCHER, AssetPaths.FIGHTER, AssetPaths.WIZARD};
-        for (String path : monsterPaths) {
-            try {
-                URL resourceUrl = getClass().getClassLoader().getResource(path.substring(1));
-                if (resourceUrl == null) {
-                    throw new IOException("Monster image resource not found: " + path);
+    /**
+     * Loads the rune image from AssetPaths.
+     */
+    private void loadRuneImage() {
+        try {
+            URL r = getClass().getClassLoader().getResource(AssetPaths.RUNE.substring(1));
+            if (r == null) throw new IOException();
+            runeImage = ImageIO.read(r);
+        } catch (IOException e) {
+            runeImage = null;
+        }
+    }
+
+    /**
+     * Determines which placed object (if any) was clicked at (mx, my).
+     * @param mx the mouse x coordinate
+     * @param my the mouse y coordinate
+     * @return the PlacedObject clicked, or null if none
+     */
+    private PlacedObject getClickedObject(int mx, int my) {
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                PlacedObject obj = placedObjects[r][c];
+                if (obj != null) {
+                    int topY = r * cellSize;
+                    int leftX = c * cellSize;
+                    int w = cellSize;
+                    int h = obj.isDouble ? cellSize * 2 : cellSize;
+                    if (obj.isDouble) {
+                        topY -= (h - cellSize);
+                    }
+                    if (mx >= leftX && mx < leftX + w && my >= topY && my < topY + h) {
+                        return obj;
+                    }
                 }
-                BufferedImage monsterImage = ImageIO.read(resourceUrl);
-                if (monsterImage == null) {
-                    throw new IOException("Failed to load monster image: " + path);
-                }
-                monsterImages.add(monsterImage);
-            } catch (IOException e) {
-                System.err.println("Error loading monster image: " + e.getMessage());
-                monsterImages.add(createFallbackImage());
             }
         }
-    }
-
-    private void initializeButtonImages() {
-        try {
-            URL pauseUrl = getClass().getClassLoader().getResource(AssetPaths.PAUSE_BUTTON.substring(1));
-            URL resumeUrl = getClass().getClassLoader().getResource(AssetPaths.RESUME_BUTTON.substring(1));
-            URL exitUrl = getClass().getClassLoader().getResource(AssetPaths.EXIT_GAME.substring(1));
-
-            if (pauseUrl == null || resumeUrl == null || exitUrl == null) {
-                throw new IOException("Pause/Resume/Exit button images not found.");
-            }
-            pauseButtonImage = ImageIO.read(pauseUrl);
-            resumeButtonImage = ImageIO.read(resumeUrl);
-            exitButtonImage = ImageIO.read(exitUrl);
-        } catch (IOException e) {
-            System.err.println("Error loading button images: " + e.getMessage());
-        }
-    }
-
-    private BufferedImage createFallbackImage() {
-        BufferedImage fallback = new BufferedImage(cellSize, cellSize, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = fallback.createGraphics();
-        g2d.setColor(Color.RED);
-        g2d.fillRect(0, 0, cellSize, cellSize);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(0, 0, cellSize - 1, cellSize - 1);
-        g2d.dispose();
-        return fallback;
+        return null;
     }
 
     /**
-     * Spawn a monster in a free cell (not outside, not a wall, not an object, not on the hero, not on another monster).
+     * Spawns a monster at a random valid location, if possible.
+     */
+    private void spawnMonster() {
+        int tries = 0;
+        while (tries < 50) {
+            int c = random.nextInt(GRID_COLS - 2) + 1;
+            int r = random.nextInt(GRID_ROWS - 2) + 1;
+            Point pt = new Point(c * cellSize, r * cellSize);
+            if (canMonsterMove(null, pt.x, pt.y) && (pt.x != hero.getX() || pt.y != hero.getY())) {
+                Monster m;
+                int t = random.nextInt(3);
+                if (t == 0) {
+                    m = new ArcherMonster(pt.x, pt.y, hero, grid, this);
+                } else if (t == 1) {
+                    m = new FighterMonster(pt.x, pt.y, hero, grid, this);
+                } else {
+                    m = new WizardMonster(pt.x, pt.y, hero, grid, this);
+                }
+                monsters.add(m);
+                break;
+            }
+            tries++;
+        }
+    }
+
+    /**
+     * Schedules regular spawning of monsters.
      */
     private void startMonsterSpawner() {
         monsterSpawnerTimer = new Timer(true);
         monsterSpawnerTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!isPaused) {
+                if (!isPaused && !gameOver && !heroDied) {
                     spawnMonster();
                     repaint();
                 }
             }
-        }, 0, 8000); // spawn a monster every 8 seconds
+        }, 0, 8000);
     }
-
-    private void spawnMonster() {
-        // Try up to 50 times to find a free cell inside the walls
-        int attempts = 0;
-        Point randomPosition = null;
-        while (attempts < 50) {
-            // Restrict spawning to rows and columns inside the walls
-            int randomCol = random.nextInt(GRID_COLS - 2) + 1; // Exclude first and last columns
-            int randomRow = random.nextInt(GRID_ROWS - 2) + 1; // Exclude first and last rows
-            Point candidatePos = new Point(randomCol * cellSize, randomRow * cellSize);
-
-            // Check if the cell is free AND not already occupied by a monster or the hero
-            if (isCellFree(candidatePos)
-                    && !monsterPositions.contains(candidatePos)
-                    && !candidatePos.equals(heroPosition)) {
-                randomPosition = candidatePos;
-                break;
-            }
-            attempts++;
-        }
-
-        // If found a free cell, add monster
-        if (randomPosition != null) {
-            int monsterType = random.nextInt(monsterImages.size());
-            monsterPositions.add(randomPosition);
-            spawnedMonsterTypes.add(monsterType);
-        }
-    }
-
 
     /**
-     * Move each monster within the grid, ensuring it cannot pass walls/objects, go outside, or step onto hero.
+     * Schedules regular monster movement.
      */
     private void startMonsterMovement() {
         monsterMovementTimer = new Timer(true);
         monsterMovementTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!isPaused) {
-                    moveMonsters();
+                if (!isPaused && !gameOver && !heroDied) {
+                    for (Monster m : monsters) {
+                        m.update();
+                    }
+
+                    // **Add this line to check health after monsters move**
+                    checkHealthCondition();
+
                     repaint();
                 }
             }
         }, 0, 500);
     }
 
-    private void moveMonsters() {
-        for (int i = 0; i < monsterPositions.size(); i++) {
-            Point monsterPos = monsterPositions.get(i);
-
-            // We'll try up to 10 random directions; if none is valid, monster won't move
-            boolean moved = false;
-            for (int attempt = 0; attempt < 10; attempt++) {
-                Point newMonsterPosition = new Point(monsterPos);
-                int direction = random.nextInt(4);
-                switch (direction) {
-                    case 0: // Move up
-                        newMonsterPosition.translate(0, -cellSize);
-                        break;
-                    case 1: // Move down
-                        newMonsterPosition.translate(0, cellSize);
-                        break;
-                    case 2: // Move left
-                        newMonsterPosition.translate(-cellSize, 0);
-                        break;
-                    case 3: // Move right
-                        newMonsterPosition.translate(cellSize, 0);
-                        break;
-                }
-
-                // Check collisions with walls, objects, hero, or other monsters
-                if (isCellFree(newMonsterPosition)
-                        && !newMonsterPosition.equals(heroPosition)
-                        && !monsterPositions.contains(newMonsterPosition)) {
-                    // Valid move => update monster position
-                    monsterPositions.set(i, newMonsterPosition);
-                    moved = true;
-                    break;
-                }
+    /**
+     * Determines if a monster can move to the given pixel location.
+     * @param monster the monster attempting to move (null if spawning)
+     * @param nx the candidate x coordinate in pixels
+     * @param ny the candidate y coordinate in pixels
+     * @return true if the monster can move there; false otherwise
+     */
+    public boolean canMonsterMove(Monster monster, int nx, int ny) {
+        int c = nx / cellSize;
+        int r = ny / cellSize;
+        if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
+        if (grid[r][c] == BuildModePanel.CellType.WALL) return false;
+        PlacedObject po = placedObjects[r][c];
+        if (po != null && po != placedObjects[DOOR_ROW][DOOR_COL]) return false;
+        for (Monster mm : monsters) {
+            if (mm != monster && mm.getX() == nx && mm.getY() == ny) {
+                return false;
             }
         }
+        if (hero.getX() == nx && hero.getY() == ny) return false;
+        return true;
     }
 
     /**
-     * Check if a given pixel-based position is already occupied by a monster.
+     * Determines if the hero can move to the given pixel location.
+     * @param p the candidate location in pixels
+     * @return true if the hero can move there; false otherwise
      */
-    private boolean isCollisionWithMonsters(Point position) {
-        return monsterPositions.contains(position);
-    }
-
-    private void initializePauseButton() {
-        JButton pauseButton = new JButton();
-        pauseButton.setBounds(850, 50, 64, 64);
-        updatePauseButtonImage(pauseButton);
-        pauseButton.setBorderPainted(false);
-        pauseButton.setFocusPainted(false);
-        pauseButton.setContentAreaFilled(false);
-        pauseButton.addActionListener(e -> {
-            isPaused = !isPaused;
-            requestFocusInWindow(); // Refocus to ensure key events work
-            updatePauseButtonImage(pauseButton);
-            
-            if (isPaused) {
-                showPausePopUp(); // Show the pop-up when paused
-            } else {
-                hidePausePopUp(); // Hide the pop-up when unpaused
+    private boolean canHeroMove(Point p) {
+        int c = p.x / cellSize;
+        int r = p.y / cellSize;
+        if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
+        if (grid[r][c] == BuildModePanel.CellType.WALL) return false;
+        PlacedObject po = placedObjects[r][c];
+        if (po != null && po != placedObjects[DOOR_ROW][DOOR_COL]) return false;
+        for (Monster mm : monsters) {
+            if (mm.getX() == p.x && mm.getY() == p.y) {
+                return false;
             }
-            
-        });
-        setLayout(null);
-        add(pauseButton);
-    }
-    private void showPausePopUp() {
-        if (pausePopUp == null) {
-        pausePopUp = new PausePopUp();
-        pausePopUp.setBounds(0,0, getWidth(), getHeight()); // Full-size overlay
-        pausePopUp.setOpaque(false); // Transparency for the background
-    
-        setLayout(null);
-        add(pausePopUp);
-        pausePopUp.setVisible(true);
-        // Force a repaint to ensure the panel appears
-        revalidate(); 
-        repaint();  
         }
-        pausePopUp.setVisible(true);
+        return true;
     }
 
-    private void hidePausePopUp() {
-        if (pausePopUp != null) {
-            pausePopUp.setVisible(false);
-            remove(pausePopUp); // Optionally remove it from the panel to clean up
-            pausePopUp = null; // Clear reference if removed
-            revalidate(); 
-            repaint(); 
-        }
-    }
-    
-    
-
-    private void updatePauseButtonImage(JButton button) {
-        BufferedImage buttonImage = isPaused ? resumeButtonImage : pauseButtonImage;
-        if (buttonImage != null) {
-            button.setIcon(new ImageIcon(buttonImage.getScaledInstance(64, 64, Image.SCALE_SMOOTH)));
-        }
-    }
-
-    private void initializeExitButton() {
-        JButton exitButton = new JButton();
-        exitButton.setBounds(850, 120, 64, 64);
-        exitButton.setBorderPainted(false);
-        exitButton.setFocusPainted(false);
-        exitButton.setContentAreaFilled(false);
-
-        if (exitButtonImage != null) {
-            exitButton.setIcon(new ImageIcon(exitButtonImage.getScaledInstance(64, 64, Image.SCALE_SMOOTH)));
+    /**
+     * Highlights archer-monster zones with a yellow overlay.
+     * @param g the Graphics context
+     */
+    private void highlightArcherZones(Graphics g) {
+        boolean[][] coverage = new boolean[GRID_ROWS][GRID_COLS];
+        for (Monster m : monsters) {
+            if (m instanceof ArcherMonster) {
+                int startR = m.getY() / 64;
+                int startC = m.getX() / 64;
+                Queue<int[]> queue = new LinkedList<>();
+                queue.add(new int[]{startR, startC, 0});
+                boolean[][] visited = new boolean[GRID_ROWS][GRID_COLS];
+                visited[startR][startC] = true;
+                while (!queue.isEmpty()) {
+                    int[] curr = queue.poll();
+                    int rr = curr[0];
+                    int cc = curr[1];
+                    int dist = curr[2];
+                    if (dist < 4) {
+                        coverage[rr][cc] = true;
+                        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1}};
+                        for (int[] d : dirs) {
+                            int nr = rr + d[0];
+                            int nc = cc + d[1];
+                            if (nr >= 0 && nr < GRID_ROWS && nc >= 0 && nc < GRID_COLS) {
+                                if (!visited[nr][nc] && grid[nr][nc] != BuildModePanel.CellType.WALL) {
+                                    visited[nr][nc] = true;
+                                    queue.add(new int[]{nr,nc,dist+1});
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        exitButton.addActionListener(e -> {
-            // Return to main menu or close the panel
-            JFrame mainMenu = new RokueLikeMainMenu();
-            mainMenu.setVisible(true);
-            SwingUtilities.getWindowAncestor(GamePanel.this).dispose();
-        });
-
-        setLayout(null);
-        add(exitButton);
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setColor(new Color(255, 255, 0, 10));
+        for (int rr = 0; rr < GRID_ROWS; rr++) {
+            for (int cc = 0; cc < GRID_COLS; cc++) {
+                if (coverage[rr][cc] && grid[rr][cc] != BuildModePanel.CellType.WALL) {
+                    g2d.fillRect(cc * cellSize, rr * cellSize, cellSize, cellSize);
+                }
+            }
+        }
+        g2d.dispose();
     }
 
+    /**
+     * Paints the game scene.
+     * @param g the Graphics context
+     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // 1) Draw the floor and walls from the BuildMode grid
+        if (gameOver && gameOverImage != null) {
+            hideButtonsIfGameOver();
+            g.drawImage(gameOverImage, 0, 0, getWidth(), getHeight(), null);
+            return;
+        }
+
+        if (heroDied && diedHeroImage != null) {
+            hideButtonsIfGameOver();
+            g.drawImage(diedHeroImage, hero.getX(), hero.getY(), cellSize, cellSize, null);
+            return;
+        }
+
         drawBoard(g);
-
-        // 2) (Optional) faint grid lines
         drawGridLines(g);
-
-        // 3) Draw the placed objects from BuildMode
         drawPlacedObjects(g);
 
-        // If the key was found, we overlay the key on top of the object’s cell
-        drawKeyIfFound(g);
+        hero.draw(g);
 
-        // 4) Draw hero
-        g.drawImage(heroImage, heroPosition.x, heroPosition.y, cellSize, cellSize, null);
-
-        // 5) Draw monsters
-        for (int i = 0; i < monsterPositions.size(); i++) {
-            Point monsterPos = monsterPositions.get(i);
-            BufferedImage monsterImage = monsterImages.get(spawnedMonsterTypes.get(i));
-            g.drawImage(monsterImage, monsterPos.x, monsterPos.y, cellSize, cellSize, null);
+        for (Monster m : monsters) {
+            if (!isCoveredByObject(m)) {
+                m.draw(g);
+            }
         }
-        // Pause overlay logic
-        if (isPaused) {
-            // Draw a semi-transparent black overlay
-            g.setColor(new Color(0, 0, 0, 150)); // RGBA for transparency
-            g.fillRect(0, 0, getWidth(), getHeight());
 
-            
-            revalidate(); 
-            repaint();  
+        highlightArcherZones(g);
+
+        for (Monster m : monsters) {
+            if (isCoveredByObject(m)) {
+                m.draw(g);
+            }
+        }
+
+        if (!isCoveredByObject(hero)) {
+            hero.draw(g);
+        }
+
+        // Display remaining time
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Time Remaining: " + timeRemaining + "s", 1000, 400);
+
+        drawObjectsAboveHero(g);
+        drawHearts(g);
+    }
+
+    /**
+     * Draws the hearts representing the hero's health.
+     * @param g the Graphics context
+     */
+    private void drawHearts(Graphics g) {
+        if (heartImage == null) {
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            g.drawString("Health: " + hero.getHealth(), 10, 20);
+            return;
+        }
+        int heartWidth = 96;
+        int heartHeight = 96;
+        int health = hero.getHealth();
+        for (int i = 0; i < 3; i++) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            int xPos = 10 + (i * (heartWidth));
+            int yPos = -20;
+            if (health > i) {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            } else {
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.2f));
+            }
+            g2d.drawImage(heartImage, xPos, yPos, heartWidth, heartHeight, null);
+            g2d.dispose();
         }
     }
 
     /**
-     * If foundKey == true, we draw the key icon in the cell of keyObject.
+     * Checks if the hero has reached the door row & col and discovered the rune; ends the game if so.
      */
-    private void drawKeyIfFound(Graphics g) {
-        if (!foundKey || keyObject == null) {
-            return;
-        }
-        int row = keyObject.gridRow;
-        int col = keyObject.gridCol;
-        int x = col * cellSize;
-        int y = row * cellSize;
+    private void checkDoorCondition() {
+        int hr = hero.getY() / cellSize;
+        int hc = hero.getX() / cellSize;
+        if (hr == DOOR_ROW-1 && hc == DOOR_COL) {
+            if (heroHasRune()) {
+                gameOver = true;
+                System.out.println("Hero escaped with the rune");
 
-        // If the object is double-height, it might be drawn upwards, but let's just show the key at the cell's floor
-        g.drawImage(keyImage, x, y, cellSize, cellSize, null);
+                // **Stop all timers to prevent further game actions**
+                if (monsterSpawnerTimer != null) {
+                    monsterSpawnerTimer.cancel();
+                }
+                if (monsterMovementTimer != null) {
+                    monsterMovementTimer.cancel();
+                }
+
+                // **Repaint immediately to show the game-over screen**
+                SwingUtilities.invokeLater(() -> repaint());
+            }
+        }
     }
 
+    /**
+     * Determines if the hero currently holds (or discovered) the rune.
+     * @return true if hero discovered the rune; false otherwise
+     */
+    private boolean heroHasRune() {
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                BuildModePanel.PlacedObject po = placedObjects[r][c];
+                if (po != null && po.hasRune && po.runeVisible) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if the hero's health has dropped to 0; triggers hero death if so.
+     */
+    private void checkHealthCondition() {
+        if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
+            heroDied = true;
+            loadDiedHeroImage(); // Load diedHeroImage based on current direction
+            isPaused = true; // Disable movement
+            System.out.println("Hero died");
+
+            // Cancel existing timers to stop monster actions
+            if (monsterSpawnerTimer != null) {
+                monsterSpawnerTimer.cancel();
+            }
+            if (monsterMovementTimer != null) {
+                monsterMovementTimer.cancel();
+            }
+
+            // Start a 2-second timer to transition to game over
+            gameOverTimer = new Timer(true);
+            gameOverTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    gameOver = true;
+                    heroDied = false; // Reset heroDied flag
+                    SwingUtilities.invokeLater(() -> repaint());
+                }
+            }, 2000); // 2000 milliseconds = 2 seconds
+
+            // Repaint to show the died hero image immediately
+            SwingUtilities.invokeLater(() -> repaint());
+        }
+    }
+
+
+    /**
+     * Draws the floor/wall tiles.
+     * @param g the Graphics context
+     */
     private void drawBoard(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
                 int x = c * cellSize;
                 int y = r * cellSize;
-
-                // Always draw floor
                 g.drawImage(floorImage, x, y, cellSize, cellSize, null);
 
-                // If it's a wall, overlay the wall image
-                if (grid[r][c] == CellType.WALL) {
+                if (grid[r][c] == BuildModePanel.CellType.WALL) {
                     if (c == 0) {
                         g.drawImage(leftVerticalWallImage, x, y, cellSize, cellSize, null);
                     } else if (c == GRID_COLS - 1) {
@@ -598,6 +755,10 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Draws faint grid lines over the board.
+     * @param g the Graphics context
+     */
     private void drawGridLines(Graphics g) {
         g.setColor(new Color(75, 30, 30, 50));
         for (int x = 0; x <= GRID_COLS; x++) {
@@ -608,69 +769,185 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Draws all placed objects (boxes, chests, etc.), including the rune if discovered.
+     * @param g the Graphics context
+     */
     private void drawPlacedObjects(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
                 BuildModePanel.PlacedObject obj = placedObjects[r][c];
                 if (obj != null) {
-                    int drawX = c * cellSize;
-                    int drawY = r * cellSize;
-                    int drawW = cellSize;
-                    int drawH = obj.isDouble ? (cellSize * 2) : cellSize;
-
-                    // Shift up if double-height
+                    int dx = c * cellSize;
+                    int dy = r * cellSize;
+                    int dw = cellSize;
+                    int dh = obj.isDouble ? cellSize * 2 : cellSize;
                     if (obj.isDouble) {
-                        drawY -= (drawH - cellSize);
+                        dy -= (dh - cellSize);
                     }
+                    g.drawImage(obj.image, dx, dy, dw, dh, null);
 
-                    g.drawImage(obj.image, drawX, drawY, drawW, drawH, null);
+                    if (obj.runeVisible && runeImage != null) {
+                        g.drawImage(runeImage, c * cellSize, r * cellSize, cellSize, cellSize, null);
+                    }
                 }
             }
         }
     }
-   
-    
-    public static void main(String[] args) {
-        // Example test for standalone usage
-        JFrame frame = new JFrame("Game Panel Test");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1000, 900);
-        frame.setLocationRelativeTo(null);
 
-        // Create dummy data for testing
-        CellType[][] testGrid = new CellType[GRID_ROWS][GRID_COLS];
-        BuildModePanel.PlacedObject[][] testObjects = new BuildModePanel.PlacedObject[GRID_ROWS][GRID_COLS];
+    /**
+     * Determines if a monster/hero is behind a double-height object at the same cell.
+     * @param entity the monster or hero
+     * @return true if the entity is behind a double-height object
+     */
+    private boolean isCoveredByObject(Object entity) {
+        int ex = entity instanceof Monster ? ((Monster) entity).getX() : hero.getX();
+        int ey = entity instanceof Monster ? ((Monster) entity).getY() : hero.getY();
+        int ec = ex / cellSize;
+        int er = ey / cellSize;
+        if (er < 0 || er >= GRID_ROWS || ec < 0 || ec >= GRID_COLS) return false;
+        BuildModePanel.PlacedObject obj = placedObjects[er][ec];
+        return obj != null && obj.isDouble;
+    }
 
-        // Fill testGrid with all FLOOR except outer walls
+    /**
+     * Draws double-height objects above the hero/monsters for a pseudo-3D effect.
+     * @param g the Graphics context
+     */
+    private void drawObjectsAboveHero(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
-                testGrid[r][c] = CellType.FLOOR;
+                BuildModePanel.PlacedObject obj = placedObjects[r][c];
+                if (obj != null && obj.isDouble) {
+                    int dx = c * cellSize;
+                    int dy = r * cellSize - cellSize;
+                    g.drawImage(obj.image, dx, dy, cellSize, cellSize * 2, null);
+
+                    if (obj.runeVisible && runeImage != null) {
+                        g.drawImage(runeImage, c * cellSize, r * cellSize, cellSize, cellSize, null);
+                    }
+                }
             }
         }
-        // Outer walls
-        for (int r = 1; r <= 11; r++) {
-            testGrid[r][0] = CellType.WALL;
-            testGrid[r][GRID_COLS - 1] = CellType.WALL;
-        }
-        for (int c = 1; c <= 11; c++) {
-            testGrid[1][c] = CellType.WALL;
-            testGrid[11][c] = CellType.WALL;
-        }
+    }
 
-        // e.g. create one dummy object at (3,3)
-        BufferedImage dummyImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = dummyImg.createGraphics();
-        g2d.setColor(Color.BLUE);
-        g2d.fillRect(0, 0, 16, 16);
+    /**
+     * Loads floor/wall tile images from the sprite sheet.
+     */
+    private void initializeFloorWallImages() {
+        try {
+            URL url = getClass().getClassLoader().getResource(AssetPaths.SPRITESHEET.substring(1));
+            if (url == null) throw new IOException();
+            BufferedImage sheet = ImageIO.read(url);
+
+            int[] floorCoords = AssetPaths.FLOOR_TILE;
+            floorImage = sheet.getSubimage(floorCoords[0], floorCoords[1], floorCoords[2], floorCoords[3]);
+            horizontalWallImage = sheet.getSubimage(17 * 16, 16, 16, 16);
+            leftVerticalWallImage = sheet.getSubimage(16 * 16, 16, 16, 16);
+            rightVerticalWallImage = sheet.getSubimage(18 * 16, 16, 16, 16);
+        } catch (IOException e) {
+            floorImage = fallback();
+            horizontalWallImage = fallback();
+            leftVerticalWallImage = fallback();
+            rightVerticalWallImage = fallback();
+        }
+    }
+
+    /**
+     * Creates a fallback red-tile image if loading the sprite sheet fails.
+     * @return the fallback BufferedImage
+     */
+    private BufferedImage fallback() {
+        BufferedImage f = new BufferedImage(cellSize, cellSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = f.createGraphics();
+        g2d.setColor(Color.RED);
+        g2d.fillRect(0, 0, cellSize, cellSize);
         g2d.dispose();
-        BuildModePanel.PlacedObject someObject = new BuildModePanel.PlacedObject(dummyImg, 3, 3, false);
-        testObjects[3][3] = someObject;
+        return f;
+    }
 
-        GamePanel gamePanel = new GamePanel(testGrid, testObjects);
-        frame.add(gamePanel);
-        
-        frame.setVisible(true);
+    /**
+     * Loads the pause/resume/exit button images from AssetPaths.
+     */
+    private void initializeButtonImages() {
+        try {
+            URL p = getClass().getClassLoader().getResource(AssetPaths.PAUSE_BUTTON.substring(1));
+            URL r = getClass().getClassLoader().getResource(AssetPaths.RESUME_BUTTON.substring(1));
+            URL e = getClass().getClassLoader().getResource(AssetPaths.EXIT_GAME.substring(1));
+            if (p == null || r == null || e == null) throw new IOException();
+            pauseButtonImage = ImageIO.read(p);
+            resumeButtonImage = ImageIO.read(r);
+            exitButtonImage = ImageIO.read(e);
+        } catch (IOException ex) {
+        }
+    }
 
-        
+    /**
+     * Creates the pause button and adds it to the panel.
+     */
+    private void createPauseButton() {
+        pauseButton = new JButton();
+        pauseButton.setBounds(850, 50, 64, 64);
+        updatePauseButtonIcon(pauseButton);
+        pauseButton.setBorderPainted(false);
+        pauseButton.setFocusPainted(false);
+        pauseButton.setContentAreaFilled(false);
+        pauseButton.addActionListener(ev -> {
+            if (!gameOver && !heroDied) {
+                isPaused = !isPaused;
+                updatePauseButtonIcon(pauseButton);
+
+                if (isPaused) {
+                    gameController.pauseGame(); // Call instance method
+                } else {
+                    gameController.resumeGame(); // Call instance method
+                }
+            }
+        });
+        setLayout(null);
+        add(pauseButton);
+    }
+
+    /**
+     * Updates the icon of the pause button, toggling between pause/resume images.
+     * @param b the pause button
+     */
+    private void updatePauseButtonIcon(JButton b) {
+        BufferedImage i = isPaused ? resumeButtonImage : pauseButtonImage;
+        if (i != null) {
+            b.setIcon(new ImageIcon(i.getScaledInstance(64, 64, Image.SCALE_SMOOTH)));
+        }
+    }
+
+    /**
+     * Creates the exit button and adds it to the panel.
+     */
+    private void createExitButton() {
+        exitButton = new JButton();
+        exitButton.setBounds(850, 120, 64, 64);
+        exitButton.setBorderPainted(false);
+        exitButton.setFocusPainted(false);
+        exitButton.setContentAreaFilled(false);
+        if (exitButtonImage != null) {
+            exitButton.setIcon(new ImageIcon(exitButtonImage.getScaledInstance(64, 64, Image.SCALE_SMOOTH)));
+        }
+        exitButton.addActionListener(e -> {
+            JFrame mm = new RokueLikeMainMenu();
+            mm.setVisible(true);
+            SwingUtilities.getWindowAncestor(this).dispose();
+        });
+        add(exitButton);
+    }
+
+    /**
+     * Hides the pause and exit buttons if the game is over or the hero has died.
+     */
+    private void hideButtonsIfGameOver() {
+        if (pauseButton != null) {
+            pauseButton.setVisible(false);
+        }
+        if (exitButton != null) {
+            exitButton.setVisible(false);
+        }
     }
 }

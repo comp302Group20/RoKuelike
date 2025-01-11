@@ -3,6 +3,9 @@ package UI;
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * A simple JPanel that stretches a background image to fill itself.
+ */
 public class BackgroundPanel extends JPanel {
     private Image backgroundImage;
 

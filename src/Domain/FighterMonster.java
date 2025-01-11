@@ -1,99 +1,73 @@
 package Domain;
 
-import java.awt.*;
+import UI.BuildModePanel;
+import Utils.AssetPaths;
+import UI.GamePanel;
 import java.util.Random;
 
 /**
- * FighterMonster class that is extends Monster
- * This monsterspecific behavior: random movement and attack abilities.
+ * FighterMonster moves towards the hero and attacks when adjacent.
  */
 public class FighterMonster extends Monster {
-    private int speed;        // Movement speed
-    private Random random;    // Random number generator for direction changes
-    private int direction;    // 0 = up, 1 = down, 2 = left, 3 = right
+    private Random random;
+    private GamePanel gamePanel;
 
     /**
-     * Constructor
+     * Constructor for FighterMonster.
      *
-     * @param startX     Starting X position of the monster.
-     * @param startY     Starting Y position of the monster.
-     * @param imagePath  Path to the monster's image.
+     * @param sx Starting x-coordinate in pixels.
+     * @param sy Starting y-coordinate in pixels.
+     * @param h  Reference to the Hero.
+     * @param mg Game grid.
+     * @param gp Reference to the GamePanel.
      */
-    public FighterMonster(int startX, int startY, String imagePath) {
-        super(startX, startY, imagePath);
-        this.speed = 2; // Default movement speed
-        this.random = new Random();
-        this.direction = random.nextInt(4); // Initialize with a random direction
+    public FighterMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg, GamePanel gp) {
+        super(sx, sy, AssetPaths.FIGHTER, h, mg);
+        random = new Random();
+        gamePanel = gp;
     }
 
-    
-      //Updates the monster's position and behavior on each game tick.
-     
+    /**
+     * Updates the FighterMonster's behavior.
+     * It faces the hero, moves randomly, and attacks if adjacent.
+     */
     @Override
     public void update() {
-        // Randomly change direction every few updates
-        if (random.nextInt(10) < 2) { // 20% chance to change direction
-            direction = random.nextInt(4);
+        updateFacingDirection();
+
+        if (adjacentToHero()) {
+            hero.setHealth(hero.getHealth() - 1);
+            System.out.println("Hero hit by FighterMonster! Health: " + hero.getHealth());
+            if (hero.getHealth() <= 0) {
+                System.out.println("Game Over");
+            }
+            return;
         }
 
-        // Move based on current direction
-        switch (direction) {
-            case 0: // Move up
-                y -= speed;
-                break;
-            case 1: // Move down
-                y += speed;
-                break;
-            case 2: // Move left
-                x -= speed;
-                break;
-            case 3: // Move right
-                x += speed;
-                break;
+        // Random movement
+        int direction = random.nextInt(4);
+        int nx = x;
+        int ny = y;
+        if (direction == 0) ny -= CELL_SIZE; // Up
+        if (direction == 1) ny += CELL_SIZE; // Down
+        if (direction == 2) nx -= CELL_SIZE; // Left
+        if (direction == 3) nx += CELL_SIZE; // Right
+
+        if (gamePanel.canMonsterMove(this, nx, ny)) {
+            setPosition(nx, ny);
         }
-
-        // Add boundary checking to keep the monster within game bounds
-        // Using precise monster dimensions from Monster.java
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (x > 832 - 20) x = 832 - 20; // Right boundary based on 832x832 panel
-        if (y > 832 - 20) y = 832 - 20; // Bottom boundary based on 832x832 panel
     }
 
     /**
-     * Renders the monster onto the game screen.
+     * Checks if the FighterMonster is adjacent to the hero.
      *
-     * @param g Graphics object used to draw the monster.
+     * @return True if adjacent; false otherwise.
      */
-    @Override
-    public void draw(Graphics g) {
-        super.draw(g);
-        // Additional visual logic for FighterMonster can be added here
-    }
-
-    /**
-     * FighterMonster-specific attack behavior.
-     */
-    public void attack() {
-        System.out.println("FighterMonster attacks with brute force!");
-        // Additional attack logic can be implemented here
-    }
-
-    /**
-     * Sets the speed of the FighterMonster.
-     *
-     * @param speed The speed value to set.
-     */
-    public void setSpeed(int speed) {
-        this.speed = speed;
-    }
-
-    /**
-     * Gets the speed of the FighterMonster.
-     *
-     * @return The current speed.
-     */
-    public int getSpeed() {
-        return speed;
+    private boolean adjacentToHero() {
+        int mr = y / CELL_SIZE;
+        int mc = x / CELL_SIZE;
+        int hr = hero.getY() / CELL_SIZE;
+        int hc = hero.getX() / CELL_SIZE;
+        return (mr == hr && Math.abs(mc - hc) == 1) || (mc == hc && Math.abs(mr - hr) == 1);
     }
 }

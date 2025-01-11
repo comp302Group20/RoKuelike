@@ -1,5 +1,8 @@
 package Domain;
 
+/**
+ * Simple data structure to store row/col and any placed GameObject.
+ */
 public class GridCell {
     private final int row, col;
     private GameObject object;
