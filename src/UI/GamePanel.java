@@ -100,6 +100,7 @@ public class GamePanel extends JPanel {
      * True if the game is paused; false otherwise.
      */
     private boolean isPaused = false;
+    private PausePopUp pausePopUp;
 
     /**
      * True if the game is over; false otherwise.
