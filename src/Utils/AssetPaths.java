@@ -57,5 +57,10 @@ public class AssetPaths {
     public static final String COMPLETED3 = getPath("/completed3.png");
     public static final String COMPLETED4 = getPath("/completed4.png");
     public static final String CONGRATULATIONS= getPath("/congratulations.png");
+    public static final String REVEAL_ENCH = getPath("/reveal.png");
+    public static final String CLOAK_ENCH = getPath("/cloakofprotection.png");
+    public static final String LURING_ENCH = getPath("/luringgem.png");
+    public static final String EXTRATIME_ENCH = getPath("/extratime.png");
+    public static final String EXTRALIFE_ENCH = getPath("/extralife.png");
 
 }

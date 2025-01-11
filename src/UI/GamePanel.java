@@ -23,6 +23,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
+import Domain.Enchantment;
+import Domain.EnchantmentType;
 
 /**
  * The main panel for playing the game. Handles rendering, user input,
@@ -126,6 +128,8 @@ public class GamePanel extends JPanel {
     private JButton exitButton;
 
     private int timeRemaining; // Time remaining in seconds
+    private List<Enchantment> enchantments = new ArrayList<>();
+    private Timer enchantmentSpawnTimer; // spawns enchantments every 12s
 
     public void updateTime(int timeRemaining) {
         this.timeRemaining = timeRemaining;
@@ -169,6 +173,8 @@ public class GamePanel extends JPanel {
 
         startMonsterSpawner();
         startMonsterMovement();
+
+        startEnchantmentSpawner();
 
         setFocusable(true);
         requestFocusInWindow();
@@ -238,6 +244,36 @@ public class GamePanel extends JPanel {
         g.dispose();
 
         return mirrored;
+    }
+    private void startEnchantmentSpawner() {
+        enchantmentSpawnTimer = new Timer(true);
+        enchantmentSpawnTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (!isPaused && !gameOver && !heroDied) {
+                    spawnRandomEnchantment();
+                }
+            }
+        }, 0, 12000); // 12 seconds
+    }
+
+    private void spawnRandomEnchantment() {
+        // Try up to 50 times to find a random floor cell that's empty
+        int tries = 0;
+        while (tries < 50) {
+            int r = random.nextInt(GRID_ROWS);
+            int c = random.nextInt(GRID_COLS);
+            if (grid[r][c] == BuildModePanel.CellType.FLOOR && placedObjects[r][c] == null) {
+                EnchantmentType etype = EnchantmentType.getRandomType(random);
+                Enchantment ench = new Enchantment(c * cellSize, r * cellSize, cellSize, cellSize, etype);
+                enchantments.add(ench);
+                break;
+            }
+            tries++;
+        }
+        // We'll just let them stack up in the `enchantments` list
+        // No removal or collection logic yet.
+        SwingUtilities.invokeLater(this::repaint);
     }
 
     private void loadDiedHeroImage() {
@@ -617,6 +653,10 @@ public class GamePanel extends JPanel {
 
         if (!isCoveredByObject(hero)) {
             hero.draw(g);
+        }
+
+        for (Enchantment e : enchantments) {
+            e.draw(g);
         }
 
         // Display remaining time
