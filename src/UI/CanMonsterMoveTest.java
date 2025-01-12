@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * JUnit tests for the handleMovementKeys method.
+ * JUnit tests for the canMonsterMove method.
  */
 @RunWith(JUnit4.class)
-public class HandleMovementKeysTest {
+public class CanMonsterMoveTest {
 
     // ---------------------------------------------------
     // Stub classes to make the tests compile/run
@@ -110,7 +110,7 @@ public class HandleMovementKeysTest {
     /**
      * Constructor: sets up a minimal grid and references.
      */
-    public HandleMovementKeysTest() {
+    public CanMonsterMoveTest() {
         // Initialize random
         random = new Random();
 
@@ -138,58 +138,45 @@ public class HandleMovementKeysTest {
     }
 
     // ---------------------------------------------------
-    // handleMovementKeys Method
+    // canMonsterMove Method
     // ---------------------------------------------------
     /**
-     * requires: e != null (KeyEvent is valid).
-     * modifies: this.hero (the hero's position).
-     * effects: Moves the hero's position one cell up/down/left/right if possible,
-     *          depending on the key pressed (arrow keys).
-     *          If movement is blocked (wall, object, monster, out of bounds), hero doesn't move.
+     * requires: monster may be null if checking a spawn spot, 0 <= nx,ny <= infinite
+     * modifies: none
+     * effects: Returns true if (nx, ny) is a valid tile for a monster
+     *          (not a wall, not out of bounds, not hero's cell,
+     *           not another monster's cell unless it's the same monster,
+     *           not blocked by an object).
      */
-    public void handleMovementKeys(KeyEvent e) {
-        // Don't move hero if paused/game over/hero died
-        if (isPaused || gameOver || heroDied) return;
-
-        int step = cellSize;
-        int dx = 0, dy = 0;
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:  dx = -step; break;
-            case KeyEvent.VK_RIGHT: dx =  step; break;
-            case KeyEvent.VK_UP:    dy = -step; break;
-            case KeyEvent.VK_DOWN:  dy =  step; break;
-        }
-        if (dx != 0 || dy != 0) {
-            int oldX = hero.getX();
-            int oldY = hero.getY();
-            hero.move(dx, dy);
-
-            Point newPos = new Point(hero.getX(), hero.getY());
-            if (!canHeroMove(newPos)) {
-                // revert if invalid
-                hero.setPosition(oldX, oldY);
-            }
-        }
-    }
-
-    private boolean canHeroMove(Point p) {
-        int c = p.x / cellSize;
-        int r = p.y / cellSize;
+    public boolean canMonsterMove(Monster monster, int nx, int ny) {
+        int c = nx / cellSize;
+        int r = ny / cellSize;
         if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
-        // block if WALL
+        // if it's a wall, no
         if (grid[r][c] == BuildModePanel.CellType.WALL) return false;
-        // block if there's a placed object
-        BuildModePanel.PlacedObject po = placedObjects[r][c];
-        if (po != null) return false;
-        // block if any monster is at (p.x, p.y)
-        for (Monster m : monsters) {
-            if (m.getX() == p.x && m.getY() == p.y) return false;
+
+        // if there's an object (we'll assume objects block monsters)
+        if (placedObjects[r][c] != null) {
+            return false;
+        }
+
+        // if hero is there
+        if (hero.getX() == nx && hero.getY() == ny) {
+            return false;
+        }
+
+        // if another monster is there
+        for (Monster mm : monsters) {
+            // if it's the same monster, it's okay to stand in the same spot
+            if (mm != monster && mm.getX() == nx && mm.getY() == ny) {
+                return false;
+            }
         }
         return true;
     }
 
     // ---------------------------------------------------
-    // JUnit Tests for handleMovementKeys
+    // JUnit Tests for canMonsterMove
     // ---------------------------------------------------
 
     @Before
@@ -211,78 +198,67 @@ public class HandleMovementKeysTest {
     }
 
     @Test
-    public void testHandleMovementKeys_moveUp() {
-        hero.setPosition(64, 64); // row=1, col=1
-        KeyEvent upEvent = new KeyEvent(
-                new Button(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
-                0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED
-        );
-        handleMovementKeys(upEvent);
-        assertEquals("Hero Y should be 0 after moving up one cell", 0, hero.getY());
-        assertEquals("Hero X should remain 64", 64, hero.getX());
+    public void testCanMonsterMove_validFloorCell() {
+        // [3][3] is floor
+        Monster fighter = new FighterMonster(0, 0);
+        boolean canMove = canMonsterMove(fighter, 3 * 64, 3 * 64);
+        assertTrue("Should be able to move to [3,3]", canMove);
     }
 
     @Test
-    public void testHandleMovementKeys_blockedByWall() {
-        grid[0][1] = BuildModePanel.CellType.WALL; // the cell above hero
-        hero.setPosition(64, 64);
-        KeyEvent upEvent = new KeyEvent(
-                new Button(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
-                0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED
-        );
-        handleMovementKeys(upEvent);
-        // Should not move
-        assertEquals("Hero remains at Y=64 if blocked", 64, hero.getY());
+    public void testCanMonsterMove_wallCell() {
+        grid[3][3] = BuildModePanel.CellType.WALL;
+        Monster fighter = new FighterMonster(0, 0);
+        boolean canMove = canMonsterMove(fighter, 3 * 64, 3 * 64);
+        assertFalse("Cannot move onto a wall cell", canMove);
     }
 
     @Test
-    public void testHandleMovementKeys_moveRightWithinBounds() {
-        hero.setPosition(64, 64);
-        KeyEvent rightEvent = new KeyEvent(
-                new Button(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
-                0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED
-        );
-        handleMovementKeys(rightEvent);
-        assertEquals("Hero should move to X=128", 128, hero.getX());
-        assertEquals("Hero Y stays the same", 64, hero.getY());
+    public void testCanMonsterMove_occupiedByHero() {
+        hero.setPosition(3 * 64, 3 * 64);
+        Monster fighter = new FighterMonster(0, 0);
+        boolean canMove = canMonsterMove(fighter, 3 * 64, 3 * 64);
+        assertFalse("Cannot move onto hero's cell", canMove);
     }
 
     @Test
-    public void testHandleMovementKeys_moveDownAtBoundary() {
-        // row=12 => y=12*64=768 is bottom row
-        hero.setPosition(64, 768);
-        KeyEvent downEvent = new KeyEvent(
-                new Button(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
-                0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED
-        );
-        handleMovementKeys(downEvent);
-        // Should remain the same if it's out of bounds
-        assertEquals("Hero can't move out of bottom boundary", 768, hero.getY());
+    public void testCanMonsterMove_alreadyOccupiedByAnotherMonster() {
+        Monster monsterA = new FighterMonster(3 * 64, 3 * 64);
+        monsters.add(monsterA);
+        Monster monsterB = new ArcherMonster(0, 0);
+
+        boolean canMove = canMonsterMove(monsterB, 3 * 64, 3 * 64);
+        assertFalse("Cannot move onto a cell occupied by a different monster", canMove);
     }
 
     @Test
-    public void testHandleMovementKeys_heroDiedOrPaused_NoMovement() {
-        heroDied = true;  // hero is dead
-        int oldX = hero.getX();
-        KeyEvent rightEvent = new KeyEvent(
-                new Button(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(),
-                0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED
-        );
-        handleMovementKeys(rightEvent);
-        assertEquals("Hero won't move if heroDied is true", oldX, hero.getX());
+    public void testCanMonsterMove_sameMonsterMove() {
+        Monster monsterA = new FighterMonster(3 * 64, 3 * 64);
+        monsters.add(monsterA);
 
-        // Also test when paused
-        init();
-        isPaused = true;
-        int pausedX = hero.getX();
-        handleMovementKeys(rightEvent);
-        assertEquals("Hero won't move if game is paused", pausedX, hero.getX());
+        boolean canMove = canMonsterMove(monsterA, 3 * 64, 3 * 64);
+        assertTrue("The same monster can remain in its own cell", canMove);
+    }
 
-        // Also test when gameOver
-        init();
-        gameOver = true;
-        int gameOverX = hero.getX();
-        handleMovementKeys(rightEvent);
-        assertEquals("Hero won't move if game is over", gameOverX, hero.getX());
+    @Test
+    public void testCanMonsterMove_outOfBoundsNegative() {
+        Monster monster = new ArcherMonster(0, 0);
+        boolean canMove = canMonsterMove(monster, -64, -64);
+        assertFalse("Cannot move to negative coordinates", canMove);
+    }
+
+    @Test
+    public void testCanMonsterMove_outOfBoundsExceedingGrid() {
+        Monster monster = new ArcherMonster(0, 0);
+        boolean canMove = canMonsterMove(monster, GRID_COLS * cellSize, GRID_ROWS * cellSize);
+        assertFalse("Cannot move beyond grid boundaries", canMove);
+    }
+
+    @Test
+    public void testCanMonsterMove_blockedByObject() {
+        placedObjects[3][3] = new BuildModePanel.PlacedObject();
+        Monster monster = new FighterMonster(0, 0);
+        boolean canMove = canMonsterMove(monster, 3 * 64, 3 * 64);
+        assertFalse("Cannot move onto a cell blocked by a placed object", canMove);
     }
 }
