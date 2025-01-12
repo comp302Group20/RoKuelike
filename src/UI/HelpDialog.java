@@ -23,7 +23,7 @@ public class HelpDialog extends JDialog {
             pixelFont = new Font("Monospaced", Font.BOLD, 22);
         }
 
-        setSize(600, 400);
+        setSize(1200, 500);
         setLocationRelativeTo(owner);
 
         JPanel contentPanel = new JPanel(new BorderLayout(10, 10));
@@ -41,11 +41,16 @@ public class HelpDialog extends JDialog {
         helpText.setForeground(new Color(225, 180, 160));
         helpText.setBackground(new Color(28, 26, 37));
         helpText.setText(
-                "- In Build Mode, select an object and place it by clicking on the grid.\n" +
-                        "- In Play Mode, move with arrow keys.\n" +
-                        "- Monsters spawn every 8 seconds.\n" +
-                        "- Press Pause button to pause/resume.\n" +
-                        "- Use the Exit button to return to Main Menu."
+                "- Use arrow keys to move the hero: ↑ to move up, ↓ to move down, ← to move left, and → to move right.\n" +
+                        "- Click on objects with the mouse to search for the rune. You can only search objects next to the hero.\n" +
+                        "- Collect enchantments by clicking on them before they disappear. No need to be next to them.\n" +
+                        "- Press 'R' to use the Reveal enchantment if available, highlighting a region where the rune may be.\n" +
+                        "- Press 'P' to use the Cloak of Protection, which hides the hero from certain dangers for 20 seconds.\n" +
+                        "- Press 'B' and then a direction key (A, D, W, S) to throw the Luring Gem in the desired direction.\n" +
+                        "- Watch the timer and make sure to find the rune before time runs out.\n" +
+                        "- Check the hero's bag on the screen to see available enchantments and their quantities.\n" +
+                        "- Use the Pause button to pause/resume the game.\n" +
+                        "- Use the Exit button to return to the Main Menu."
         );
         helpText.setBorder(BorderFactory.createLineBorder(new Color(225, 200, 160), 2));
 
