@@ -3,8 +3,6 @@ package Domain;
 import UI.BuildModePanel;
 import Utils.AssetPaths;
 import UI.GamePanel;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * ArcherMonster shoots arrows at the hero from a distance.
@@ -34,7 +32,13 @@ public class ArcherMonster extends Monster {
      */
     @Override
     public void update() {
+        // Always update facing direction so the archer is visually oriented.
         updateFacingDirection();
+
+        // If the cloak is active, the archer can't see or hurt the hero.
+        if (gamePanel.isCloakActive()) {
+            return;
+        }
 
         long now = System.currentTimeMillis();
         if (now - lastShot >= 1000) { // Shoot every second
@@ -45,7 +49,11 @@ public class ArcherMonster extends Monster {
             int hc = hero.getX() / CELL_SIZE;
             double distance = Math.sqrt((mr - hr) * (mr - hr) + (mc - hc) * (mc - hc));
 
-            if (distance <= 3 && distance != 2 * Math.sqrt(2)) { // Adjust shooting conditions as needed
+            // Adjust shooting conditions as needed:
+            // This check means if hero is within ~3 tiles (Manhattan or diagonal combos),
+            // and not exactly 2√2 away (which might correspond to a diagonal at distance 2),
+            // the archer deals damage.
+            if (distance <= 3 && distance != 2 * Math.sqrt(2)) {
                 hero.setHealth(hero.getHealth() - 1);
                 System.out.println("Hero hit by ArcherMonster! Health: " + hero.getHealth());
                 if (hero.getHealth() <= 0) {

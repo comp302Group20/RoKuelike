@@ -55,6 +55,11 @@ public class GameController {
      * Called after the user presses "Finish Building" in build mode.
      * We must enforce the min object count before starting the play mode.
      */
+
+    public GameTimer getGameTimer() {
+        return this.gameTimer;
+    }
+
     public void onBuildModeFinished(BuildModePanel.CellType[][] grid, BuildModePanel.PlacedObject[][] placedObjects) {
         // Count how many objects were placed
         int placedObjectCount = 0;
