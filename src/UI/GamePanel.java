@@ -100,7 +100,33 @@ public class GamePanel extends JPanel {
         this.gameController = controller;
         setBackground(Color.BLACK);
 
-        hero = new Hero(2 * cellSize, 2 * cellSize, cellSize, cellSize);
+        // 1) Initialize random first
+        this.random = new Random();
+        monsters = new ArrayList<>();
+
+// 2) Now safely pick hero's random position
+        int tries = 0;
+        Hero tempHero = null;
+        while (tries < 100) {
+            int r = 1 + random.nextInt(GRID_ROWS - 2);
+            int c = 1 + random.nextInt(GRID_COLS - 2);
+
+            // Must be floor, must not be a wall or an object
+            if (grid[r][c] == BuildModePanel.CellType.FLOOR && placedObjects[r][c] == null) {
+                tempHero = new Hero(c * cellSize, r * cellSize, cellSize, cellSize);
+                break;
+            }
+            tries++;
+        }
+
+// Fallback if no valid spot is found after 100 tries
+        if (tempHero == null) {
+            tempHero = new Hero(2 * cellSize, 2 * cellSize, cellSize, cellSize);
+        }
+
+// Finally assign the hero
+        hero = tempHero;
+
         monsters = new ArrayList<>();
         random = new Random();
 
@@ -1098,6 +1124,8 @@ public class GamePanel extends JPanel {
                     gameController.pauseGame();
                 } else {
                     gameController.resumeGame();
+                    // Force focus back to the GamePanel so it can receive key events again
+                    GamePanel.this.requestFocusInWindow();
                 }
             }
         });
