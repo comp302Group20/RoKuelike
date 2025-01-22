@@ -3,13 +3,14 @@ package Domain;
 import Utils.AssetPaths;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
+import java.awt.*;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.net.URL;
+import java.awt.AlphaComposite;
 
 /**
  * Singleton Hero class with serialization logic similar to Monster classes.
@@ -33,6 +34,14 @@ public class Hero implements Serializable {
     private boolean facingLeft = false;  // If your hero can face left/right
 
     private Inventory inventory;
+
+    // ---------------------------------------------------------
+    // Fields to enable the red "damage" flash effect
+    // ---------------------------------------------------------
+    private transient BufferedImage damageHeroImage;
+    private boolean showingDamageEffect = false;
+    private long damageEffectStartTime = 0;
+    private static final int DAMAGE_EFFECT_DURATION = 50; // ~50ms quick flash
 
     /**
      * Private constructor for singleton pattern.
@@ -89,25 +98,65 @@ public class Hero implements Serializable {
     }
 
     // ---------------------------------------------------------
-    //             ADD THIS METHOD TO FIX THE ERROR:
+    //  MOVEMENT & HEALTH-CHANGE LOGIC
     // ---------------------------------------------------------
+
     /**
      * Moves the hero by dx, dy pixels.
      */
     public void move(int dx, int dy) {
+        // Decide facing direction
+        if (dx < 0) {
+            facingLeft = true;
+        } else if (dx > 0) {
+            facingLeft = false;
+        }
         this.x += dx;
         this.y += dy;
     }
 
+    /**
+     * If health is lowered, trigger the quick red-flash effect.
+     */
+    public void setHealth(int newHealth) {
+        // If the new health is less than the current health, hero took damage
+        if (newHealth < this.health) {
+            startDamageEffect();
+        }
+        this.health = newHealth;
+    }
+
     // ---------------------------------------------------------
-    //              IMAGE LOADING & MIRRORING
+    //              DAMAGE-EFFECT UTILS
     // ---------------------------------------------------------
 
-    /**
-     * Loads the hero image and creates a mirrored version for left-facing.
-     *
-     * @param path Path to the hero's image within your resources.
-     */
+    private void startDamageEffect() {
+        showingDamageEffect = true;
+        damageEffectStartTime = System.currentTimeMillis();
+
+        // If hero is facing left, tint the mirrored image, otherwise tint the normal hero image
+        if (facingLeft && mirroredHeroImage != null) {
+            damageHeroImage = tintImage(mirroredHeroImage, new Color(255, 0, 0, 100));
+        } else {
+            damageHeroImage = tintImage(heroImage, new Color(255, 0, 0, 100));
+        }
+    }
+
+    private BufferedImage tintImage(BufferedImage src, Color color) {
+        if (src == null) return null;
+        BufferedImage tinted = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = tinted.createGraphics();
+        g.drawImage(src, 0, 0, null);
+        g.setComposite(AlphaComposite.SrcAtop);
+        g.setColor(color);
+        g.fillRect(0, 0, src.getWidth(), src.getHeight());
+        g.dispose();
+        return tinted;
+    }
+
+    // ---------------------------------------------------------
+    //          IMAGE LOADING & MIRRORING
+    // ---------------------------------------------------------
     private void loadImage(String path) {
         try {
             String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
@@ -116,7 +165,6 @@ public class Hero implements Serializable {
                 throw new IOException("Hero image not found at: " + path);
             }
             heroImage = ImageIO.read(resource);
-
             mirroredHeroImage = mirrorImage(heroImage);
         } catch (IOException e) {
             heroImage = fallback();
@@ -125,15 +173,9 @@ public class Hero implements Serializable {
         }
     }
 
-    /**
-     * Creates a mirrored version (horizontal flip) of the given image.
-     */
     private BufferedImage mirrorImage(BufferedImage original) {
-        BufferedImage mirrored = new BufferedImage(
-                original.getWidth(),
-                original.getHeight(),
-                original.getType()
-        );
+        if (original == null) return null;
+        BufferedImage mirrored = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
         Graphics2D g2d = mirrored.createGraphics();
         // Flip horizontally
         g2d.drawImage(
@@ -146,9 +188,6 @@ public class Hero implements Serializable {
         return mirrored;
     }
 
-    /**
-     * Fallback image in case loading fails (just a solid-red rectangle).
-     */
     private BufferedImage fallback() {
         BufferedImage fb = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = fb.createGraphics();
@@ -157,10 +196,6 @@ public class Hero implements Serializable {
         g2d.dispose();
         return fb;
     }
-
-    // ---------------------------------------------------------
-    //       CUSTOM DESERIALIZATION (to reload images)
-    // ---------------------------------------------------------
 
     /**
      * Custom method called during deserialization. Reloads transient images.
@@ -171,24 +206,39 @@ public class Hero implements Serializable {
     }
 
     // ---------------------------------------------------------
-    //                     DRAWING LOGIC
+    //                   DRAWING LOGIC
     // ---------------------------------------------------------
+    public void draw(Graphics g) {
+        if (heroImage == null) {
+            // fallback
+            g.setColor(Color.RED);
+            g.fillRect(x, y, width, height);
+            return;
+        }
 
-    /**
-     * Draw the hero on-screen.
-     *
-     * @param g The Graphics context
-     */
-    public void draw(java.awt.Graphics g) {
-        if (g == null) return;
-        BufferedImage toDraw = facingLeft ? mirroredHeroImage : heroImage;
-        g.drawImage(toDraw, x, y, width, height, null);
+        // Decide which image to draw
+        BufferedImage imgToDraw;
+        if (showingDamageEffect) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - damageEffectStartTime < DAMAGE_EFFECT_DURATION) {
+                // Still within the damage flash window
+                imgToDraw = (damageHeroImage != null ? damageHeroImage : heroImage);
+            } else {
+                // Damage effect expired, revert to normal
+                showingDamageEffect = false;
+                imgToDraw = facingLeft && mirroredHeroImage != null ? mirroredHeroImage : heroImage;
+            }
+        } else {
+            // Normal rendering
+            imgToDraw = facingLeft && mirroredHeroImage != null ? mirroredHeroImage : heroImage;
+        }
+
+        g.drawImage(imgToDraw, x, y, width, height, null);
     }
 
     // ---------------------------------------------------------
     //                 GETTERS AND SETTERS
     // ---------------------------------------------------------
-
     public int getX() {
         return x;
     }
@@ -198,9 +248,6 @@ public class Hero implements Serializable {
 
     public int getHealth() {
         return health;
-    }
-    public void setHealth(int health) {
-        this.health = health;
     }
 
     public boolean isFacingLeft() {

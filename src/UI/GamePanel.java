@@ -29,6 +29,8 @@ import Domain.Enchantment;
 import Domain.EnchantmentType;
 import Domain.Inventory;
 import Utils.GameFonts;
+import Utils.SoundPlayer;
+
 
 /**
  * The main panel for playing the game. Handles rendering, user input,
@@ -228,6 +230,7 @@ public class GamePanel extends JPanel {
                     obj.runeVisible = true;
                     gameController.gameState.setRuneFound(true);  // Set the flag when rune is found
                     System.out.println("Rune discovered!");
+                    SoundPlayer.playSound("/resources/sounds/door_open.wav");
                 }
             }
         });
@@ -832,6 +835,11 @@ public class GamePanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        if (heroDied && diedHeroImage != null) {
+            hideButtonsIfGameOver();
+            g.drawImage(diedHeroImage, hero.getX(), hero.getY(), cellSize, cellSize, null);
+            return;
+        }
         // If gameOver, show image and stop drawing
         if (gameOver && gameOverImage != null) {
             hideButtonsIfGameOver();

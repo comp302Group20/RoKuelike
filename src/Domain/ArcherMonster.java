@@ -3,6 +3,7 @@ package Domain;
 import UI.BuildModePanel;
 import Utils.AssetPaths;
 import UI.GamePanel;
+import Utils.SoundPlayer;
 
 import java.io.Serializable;
 import java.util.Timer;
@@ -61,6 +62,7 @@ public class ArcherMonster extends Monster implements Serializable {
                     return;
                 }
                 hero.setHealth(hero.getHealth() - 1);
+                SoundPlayer.playSound("/resources/sounds/hurt.wav");
                 System.out.println("Hero hit by ArcherMonster! Health: " + hero.getHealth());
             }
         }

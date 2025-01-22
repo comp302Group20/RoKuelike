@@ -3,6 +3,7 @@ package Domain;
 import UI.BuildModePanel;
 import Utils.AssetPaths;
 import UI.GamePanel;
+import Utils.SoundPlayer;
 
 import java.awt.Point;
 import java.util.List;  // Add this import
@@ -28,6 +29,7 @@ public class FighterMonster extends Monster implements Serializable {
 
         if (adjacentToHero()) {
             hero.setHealth(hero.getHealth() - 1);
+            SoundPlayer.playSound("/resources/sounds/hurt.wav");
             System.out.println("Hero hit by FighterMonster! Health: " + hero.getHealth());
             if (hero.getHealth() <= 0) {
                 System.out.println("Game Over");
