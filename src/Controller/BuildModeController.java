@@ -1,6 +1,7 @@
 package Controller;
 
 import Domain.Hall;
+import Domain.Inventory;
 import UI.BuildModePanel;
 import javax.swing.*;
 import java.awt.*;
@@ -10,23 +11,30 @@ public class BuildModeController {
     private BuildModePanel buildPanel;
     private Hall hall;
     private GameController parentController;
+    private Inventory previousInventory;  // Add this field
 
-    public BuildModeController(Hall hall, GameController parentController) {
+    // Add new constructor that accepts inventory
+    public BuildModeController(Hall hall, GameController parentController, Inventory previousInventory) {
         this.hall = hall;
         this.parentController = parentController;
+        this.previousInventory = previousInventory;
         initializeUI();
+    }
+
+    // Keep the old constructor for compatibility
+    public BuildModeController(Hall hall, GameController parentController) {
+        this(hall, parentController, null);
     }
 
     private void initializeUI() {
         frame = new JFrame("Build Mode - " + hall.getName());
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(1000, 900);  // Reduced width
+        frame.setSize(1000, 900);
         frame.setLocationRelativeTo(null);
         buildPanel = new BuildModePanel(hall, parentController, frame);
         frame.setLayout(new BorderLayout());
         frame.add(buildPanel, BorderLayout.CENTER);
 
-        // Create bottom panel with finish button
         JPanel bottomPanel = new JPanel();
         bottomPanel.setBackground(new Color(240, 240, 240));
         bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
@@ -41,10 +49,13 @@ public class BuildModeController {
             int numberOfObjects = buildPanel.getNumberOfPlacedObjects();
 
             if (hall.validateObjectCount(numberOfObjects)) {
-                // First notify the parent controller
-                parentController.onBuildModeFinished(buildPanel.getGrid(), buildPanel.getPlacedObjectsGrid());
+                // Pass the previous inventory to the controller
+                parentController.onBuildModeFinished(
+                        buildPanel.getGrid(),
+                        buildPanel.getPlacedObjectsGrid(),
+                        previousInventory  // Add this parameter
+                );
 
-                // Then dispose of the frame
                 frame.setVisible(false);
                 frame.dispose();
                 System.out.println("Closing the Build Frame!");
@@ -67,7 +78,6 @@ public class BuildModeController {
         return buildPanel;
     }
 
-    // Add a method to explicitly close the build mode
     public void closeBuildMode() {
         if (frame != null) {
             frame.setVisible(false);

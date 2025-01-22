@@ -74,4 +74,8 @@ public class Inventory {
     public void setEnchantments(List<Enchantment> loadedEnchantments) {
         this.collectedEnchantments = new ArrayList<>(loadedEnchantments);
     }
+
+    public void clearEnchantments() {
+        this.collectedEnchantments.clear();
+    }
 }

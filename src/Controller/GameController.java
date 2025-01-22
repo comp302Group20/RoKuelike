@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,7 @@ public class GameController {
     private static final int WINDOW_WIDTH = 1000;
     private static final int WINDOW_HEIGHT = 900;
     private static final int TIME_PER_OBJECT = 5; // seconds
+    private static Inventory persistentInventory = null;
 
     // Keep track of how many halls have been completed (0 to 4).
     private static int gamesCompleted = 0;
@@ -67,7 +69,12 @@ public class GameController {
         this.currentHallNumber = gamesCompleted + 1;
         this.isPaused = false;
         this.timeRemaining = 0;
-        this.gameState = new GameState();  // Uses the no-args constructor
+        this.gameState = new GameState();
+
+        // Don't reset persistent inventory if it exists
+        if (persistentInventory == null) {
+            persistentInventory = new Inventory();
+        }
     }
 
     public GameTimer getGameTimer() {
@@ -79,7 +86,8 @@ public class GameController {
      * We must enforce the min object count before starting the play mode.
      */
     public void onBuildModeFinished(BuildModePanel.CellType[][] grid,
-                                    BuildModePanel.PlacedObject[][] placedObjects) {
+                                    BuildModePanel.PlacedObject[][] placedObjects,
+                                    Inventory previousInventory) {
         // Count how many objects were placed
         int placedObjectCount = 0;
         for (int r = 0; r < placedObjects.length; r++) {
@@ -111,11 +119,10 @@ public class GameController {
             return; // Stop -- do not start play mode
         }
 
-        // If there are enough objects, proceed:
         startingTime = timeRemaining;
 
-        // Start the actual play mode
-        startPlayMode(grid, placedObjects, startingTime);
+        // Start the actual play mode with the previous inventory
+        startPlayMode(grid, placedObjects, startingTime, previousInventory);
     }
 
     /**
@@ -149,24 +156,38 @@ public class GameController {
      */
     private void startPlayMode(BuildModePanel.CellType[][] grid,
                                BuildModePanel.PlacedObject[][] placedObjects,
-                               int startingTime) {
+                               int startingTime,
+                               Inventory previousInventory) {  // Add this parameter
         // Close any existing window (in case there's one open)
         closeGame();
 
         playModeFrame = new JFrame("Play Mode - " + getHallDescriptor(currentHallNumber));
         playModeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        playModeFrame.setSize(1100, 900);  // Reduced from 1600 to 1100
+        playModeFrame.setSize(1100, 900);
         playModeFrame.setLocationRelativeTo(null);
 
-        // Assign to the field "gamePanel" so other methods can access it
+        // Reset hero
+        Hero.reset();
+        Hero newHero = Hero.getInstance(0, 0, 64, 64);
+
+        // Set the inventory based on whether this is a new game or continuing
+        if (gamesCompleted == 0) {
+            // New game - clear inventory
+            newHero.getInventory().clearEnchantments();
+        } else if (previousInventory != null) {
+            // Continuing game - use previous inventory
+            newHero.getInventory().setEnchantments(
+                    new ArrayList<>(previousInventory.getCollectedEnchantments())
+            );
+        }
+
+        // Create new GamePanel with the hero
         gamePanel = new GamePanel(grid, placedObjects, this);
 
         // Initialize domain-based timer
         gameTimer = new GameTimer(startingTime);
         gameTimer.start(
-                // Update callback - called every "tick" of the domain timer
                 () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),
-                // Time ran out callback
                 () -> gamePanel.triggerGameOver()
         );
 
@@ -183,6 +204,11 @@ public class GameController {
      * then proceed to the next hall or final screen.
      */
     public void onHeroEscaped() {
+        // Save the current inventory before closing
+        if (gamePanel != null && gamePanel.getHero() != null) {
+            persistentInventory = gamePanel.getHero().getInventory();
+        }
+
         // Close the old play mode frame
         if (playModeFrame != null) {
             playModeFrame.dispose();
@@ -194,7 +220,6 @@ public class GameController {
         // Show the corresponding "completed" image for 3 seconds, then move on
         showCompletionScreen();
     }
-
     /**
      * Displays the correct "completedX.png" image in a window for 3 seconds,
      * then calls finishOrExit().
@@ -234,8 +259,21 @@ public class GameController {
      */
     private void finishOrExit() {
         if (gamesCompleted < 4) {
+            // Get the current inventory before transitioning
+            // Make it final
+            final Inventory currentInventory = gamePanel != null && gamePanel.getHero() != null
+                    ? new Inventory()
+                    : null;
+
+            // Copy the enchantments if we have a current inventory
+            if (currentInventory != null) {
+                currentInventory.setEnchantments(
+                        new ArrayList<>(gamePanel.getHero().getInventory().getCollectedEnchantments())
+                );
+            }
+
             // Prepare the next hall with the correct min object count
-            int nextMin = MIN_OBJECTS[gamesCompleted]; // gamesCompleted is now 1..3 for next hall
+            int nextMin = MIN_OBJECTS[gamesCompleted];
             String namehall;
             switch (gamesCompleted + 1) {
                 case 1:  namehall = "Hall of Earth";  break;
@@ -252,14 +290,15 @@ public class GameController {
                     nextMin
             );
 
-            // Create new GameController and BuildModeController
+            // Create new GameController
             GameController nextController = new GameController(nextHall);
+
+            // Use the final currentInventory in lambda
             SwingUtilities.invokeLater(() -> {
-                new BuildModeController(nextHall, nextController);
+                new BuildModeController(nextHall, nextController, currentInventory);
             });
 
         } else {
-            // We've completed the 4th hall; show the congratulations.png
             showCongratulationsScreen();
         }
     }
@@ -504,6 +543,7 @@ public class GameController {
 
     public static void resetProgress() {
         gamesCompleted = 0;
+        persistentInventory = null;  // Add this line
     }
 
     /**

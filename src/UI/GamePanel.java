@@ -942,10 +942,19 @@ public class GamePanel extends JPanel {
                     g.setColor(Color.WHITE);
                     g.setFont(new Font("Arial", Font.BOLD, 20));
                     String strategy = ((WizardMonster)m).getCurrentBehaviorName();
-                    int stratX = getWidth() - 200;  // Position in bottom right
-                    int stratY = getHeight() - 50;
+
+                    // Calculate position relative to game board
+                    int boardWidth = GRID_COLS * cellSize;
+                    int boardHeight = GRID_ROWS * cellSize;
+
+                    FontMetrics strategyFm = g.getFontMetrics();
+                    int textWidth = strategyFm.stringWidth("Wizard Strategy: " + strategy);
+
+                    int stratX = boardWidth - textWidth - 20;  // 20 pixels padding from right
+                    int stratY = boardHeight - 20;  // 20 pixels padding from bottom
+
                     g.drawString("Wizard Strategy: " + strategy, stratX, stratY);
-                    break;  // Only need to show for first wizard
+                    break;
                 }
             }
         }
@@ -1489,6 +1498,12 @@ public class GamePanel extends JPanel {
         add(saveButton);
     }
 
+    public void clearEnchantments() {
+        this.enchantments.clear();
+        if (hero != null && hero.getInventory() != null) {
+            hero.getInventory().clearEnchantments();
+        }
+    }
 
     /**
      * Hides pause/exit buttons if the game is over or hero died.
