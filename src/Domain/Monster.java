@@ -7,20 +7,25 @@ import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.net.URL;
 import java.awt.geom.AffineTransform;
+import java.io.Serializable;
 
 /**
  * Abstract class representing a generic monster in the game.
  */
-public abstract class Monster {
+public abstract class Monster implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     protected int x, y;
     protected int width = 64;
     protected int height = 64;
-    protected BufferedImage monsterImage;
-    protected BufferedImage mirroredImage; // Mirrored image for left-facing
+    protected transient BufferedImage monsterImage;
+    protected transient BufferedImage mirroredImage; // Mirrored image for left-facing
     protected Hero hero;
     protected BuildModePanel.CellType[][] mapGrid;
     protected static final int CELL_SIZE = 64;
+    protected String imagePath;  // Store the path for reloading images
 
+    private boolean pendingRemoval = false;
     protected boolean facingLeft = false;
 
     /**
@@ -37,6 +42,7 @@ public abstract class Monster {
         y = startY;
         this.hero = h;
         this.mapGrid = mapGrid;
+        this.imagePath = imagePath;
         loadImage(imagePath);
     }
 
@@ -114,6 +120,15 @@ public abstract class Monster {
         // If heroColumn == monsterColumn, do not change facingLeft
     }
 
+    public boolean isPendingRemoval() {
+        return pendingRemoval;
+    }
+
+    public void setPendingRemoval(boolean val) {
+        this.pendingRemoval = val;
+    }
+
+
     /**
      * Abstract update method to be implemented by subclasses.
      */
@@ -127,6 +142,12 @@ public abstract class Monster {
     public void draw(Graphics g) {
         BufferedImage imgToDraw = (facingLeft && mirroredImage != null) ? mirroredImage : monsterImage;
         g.drawImage(imgToDraw, x, y, width, height, null);
+    }
+
+    // Custom deserialization to reload images
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        loadImage(imagePath);  // Reload the images using the stored path
     }
 
     // Getters and setters

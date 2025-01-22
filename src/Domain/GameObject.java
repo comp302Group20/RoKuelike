@@ -3,14 +3,16 @@ package Domain;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.Serializable;
 
 /**
  * Generic game object that can be placed on the grid (e.g. chests, boxes).
  */
-public class GameObject {
+public class GameObject implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String name;
     private final String imagePath;
-    private Image image;
+    private transient Image image;
     private final SpriteLocation spriteLocation;
 
     public GameObject(String name, String imagePath) {

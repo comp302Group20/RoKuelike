@@ -1,10 +1,13 @@
 package Domain;
 
+import java.io.Serializable;
+
 /**
  * Represents one Hall (or one “room”).
  * Has a grid with row × col and a minimum object count requirement.
  */
-public class Hall {
+public class Hall implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String name;
     private final int rows, cols;
     private GridCell[][] grid;

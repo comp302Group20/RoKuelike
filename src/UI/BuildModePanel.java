@@ -1,5 +1,6 @@
 package UI;
 
+import Controller.GameController;
 import Domain.Hall;
 import Utils.AssetPaths;
 import javax.imageio.ImageIO;
@@ -8,6 +9,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,18 +37,22 @@ public class BuildModePanel extends JPanel {
     private final List<Boolean> isDoubleHeight = new ArrayList<>();
     private final List<JPanel> objectPanels = new ArrayList<>();
     private int selectedObjectIndex = -1;
+    private GameController gameController; // Add this field
 
-    public BuildModePanel(Hall hall) {
+    private JFrame parentFrame; // Add this field
+
+    public BuildModePanel(Hall hall, GameController controller, JFrame frame) {
         currentHall = hall;
+        this.gameController = controller;
+        this.parentFrame = frame;
         grid = new CellType[GRID_ROWS][GRID_COLS];
         placedObjectsGrid = new PlacedObject[GRID_ROWS][GRID_COLS];
-        setPreferredSize(new Dimension(1600, 900));
+        setPreferredSize(new Dimension(1000, 900));
         setLayout(null);
         initializeGrid();
         initializeImages();
         initializeUI();
         loadObjects();
-
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -178,7 +186,7 @@ public class BuildModePanel extends JPanel {
 
     private void initializeUI() {
         objectColumnPanel = new JPanel();
-        objectColumnPanel.setBounds(1300, 0, 300, 900); // Adjusted width for better UI
+        objectColumnPanel.setBounds(832 + 10, 0, 150, 900);  // Adjusted width and position
         objectColumnPanel.setLayout(new BoxLayout(objectColumnPanel, BoxLayout.Y_AXIS));
         objectColumnPanel.setBorder(BorderFactory.createTitledBorder("Available Objects"));
         objectColumnPanel.setBackground(new Color(240, 240, 240));
@@ -225,8 +233,8 @@ public class BuildModePanel extends JPanel {
         Image scaledImage = objectImage.getScaledInstance(cellSize, h, Image.SCALE_SMOOTH);
         JLabel objectLabel = new JLabel(new ImageIcon(scaledImage));
         objectPanel.add(objectLabel, BorderLayout.CENTER);
-        objectPanel.setMaximumSize(new Dimension(280, h + 10)); // Adjusted width for better UI
-        objectPanel.setPreferredSize(new Dimension(280, h + 10));
+        objectPanel.setMaximumSize(new Dimension(230, h + 10));  // Adjusted width
+        objectPanel.setPreferredSize(new Dimension(230, h + 10));
         objectPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         objectPanel.setBackground(null);
         objectPanel.setOpaque(false);
@@ -304,8 +312,28 @@ public class BuildModePanel extends JPanel {
             return;
         }
 
-        // Place the object
-        placedObjectsGrid[gridRow][gridCol] = new PlacedObject(selImage, gridRow, gridCol, selDouble);
+        PlacedObject newObject = new PlacedObject(selImage, gridRow, gridCol, selDouble);
+
+        // Define object types and their coordinates
+        Object[][] objectDefinitions = {
+                {AssetPaths.PILLAR, "PILLAR", true},
+                {AssetPaths.LADDER, "LADDER", false},
+                {AssetPaths.BOX, "BOX", false},
+                {AssetPaths.DOUBLE_BOX, "DOUBLE_BOX", true},
+                {AssetPaths.TORCH, "TORCH", false},
+                {AssetPaths.SKULL, "SKULL", false},
+                {AssetPaths.CHEST, "CHEST", false},
+                {AssetPaths.POTION, "POTION", false}
+        };
+
+        // Set the coordinates and type for the selected object
+        if (selectedObjectIndex >= 0 && selectedObjectIndex < objectDefinitions.length) {
+            int[] coords = (int[]) objectDefinitions[selectedObjectIndex][0];
+            String type = (String) objectDefinitions[selectedObjectIndex][1];
+            newObject.setImageCoords(coords, type);
+        }
+
+        placedObjectsGrid[gridRow][gridCol] = newObject;
     }
 
     /**
@@ -382,19 +410,52 @@ public class BuildModePanel extends JPanel {
         }
     }
 
-    public static class PlacedObject {
-        public BufferedImage image;
+    public void closeBuildMode() {
+        if (parentFrame != null) {
+            parentFrame.dispose();
+        }
+    }
+
+    public static class PlacedObject implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public transient BufferedImage image; // transient because BufferedImage isn't serializable
         public final int gridRow;
         public final int gridCol;
         public final boolean isDouble;
         public boolean hasRune = false;
         public boolean runeVisible = false;
+        private int[] imageCoords; // Store the coordinates from the spritesheet
+        private String objectType; // Add this to store the type of object
 
         public PlacedObject(BufferedImage image, int gridRow, int gridCol, boolean isDouble) {
             this.image = image;
             this.gridRow = gridRow;
             this.gridCol = gridCol;
             this.isDouble = isDouble;
+        }
+
+        public void setImageCoords(int[] coords, String type) {
+            this.imageCoords = coords;
+            this.objectType = type;
+        }
+
+        private void writeObject(ObjectOutputStream out) throws IOException {
+            out.defaultWriteObject();
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            in.defaultReadObject();
+            try {
+                URL resourceUrl = getClass().getClassLoader().getResource(AssetPaths.SPRITESHEET.substring(1));
+                if (resourceUrl != null && imageCoords != null) {
+                    BufferedImage spriteSheet = ImageIO.read(resourceUrl);
+                    this.image = spriteSheet.getSubimage(
+                            imageCoords[0], imageCoords[1], imageCoords[2], imageCoords[3]
+                    );
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

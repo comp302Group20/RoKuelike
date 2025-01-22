@@ -1,9 +1,11 @@
 package Domain;
 
+import java.io.Serializable;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class GameTimer {
+public class GameTimer implements Serializable {
+    private static final long serialVersionUID = 1L;
     private int timeRemaining; // in seconds
     private Timer timer;
     private boolean isPaused;

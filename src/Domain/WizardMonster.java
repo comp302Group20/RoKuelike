@@ -3,54 +3,73 @@ package Domain;
 import UI.BuildModePanel;
 import UI.GamePanel;
 import Utils.AssetPaths;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.io.IOException;
+import java.io.Serializable;
 
-/**
- * WizardMonster can teleport the rune randomly on the map.
- */
-public class WizardMonster extends Monster {
-    private GamePanel gamePanel;
-    private Timer teleportTimer;
-    private Random rng;
+public class WizardMonster extends Monster implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    /**
-     * Constructor for WizardMonster.
-     *
-     * @param sx Starting x-coordinate in pixels.
-     * @param sy Starting y-coordinate in pixels.
-     * @param h  Reference to the Hero.
-     * @param mg Game grid.
-     * @param gp Reference to the GamePanel.
-     */
+    // We'll create and reuse these behaviors:
+    private transient WizardBehavior challengeBehavior;
+    private transient WizardBehavior helpBehavior;
+    private transient WizardBehavior indecisiveBehavior;
+
+    // Tracks whichever behavior is currently active
+    private transient WizardBehavior currentBehavior;
+
+    private transient GamePanel gamePanel;
+
     public WizardMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg, GamePanel gp) {
         super(sx, sy, AssetPaths.WIZARD, h, mg);
-        gamePanel = gp;
-        rng = new Random();
-        teleportTimer = new Timer(true);
-        startRuneTeleportTimer();
+        this.gamePanel = gp;
+
+        // Create behavior objects once
+        challengeBehavior = new ChallengeHeroBehavior();
+        helpBehavior = new HelpHeroBehavior();
+        indecisiveBehavior = new IndecisiveBehavior();
+
+        // Start out, say, indecisive (or null)
+        currentBehavior = indecisiveBehavior;
     }
 
-    /**
-     * Updates the WizardMonster's behavior.
-     * It faces the hero and performs teleportation.
-     */
     @Override
     public void update() {
         updateFacingDirection();
-        // WizardMonster-specific behaviors can be added here
+
+        // Check the ratio each update
+        double ratio = gamePanel.getTimeRatio();
+
+        // Switch behaviors only if necessary
+        if (ratio > 0.7 && currentBehavior != challengeBehavior) {
+            // Switch to ChallengeHeroBehavior (same instance)
+            currentBehavior = challengeBehavior;
+        }
+        else if (ratio < 0.3 && currentBehavior != helpBehavior) {
+            // Switch to HelpHeroBehavior
+            currentBehavior = helpBehavior;
+        }
+        else if (ratio >= 0.3 && ratio <= 0.7 && currentBehavior != indecisiveBehavior) {
+            // Switch to IndecisiveBehavior
+            currentBehavior = indecisiveBehavior;
+        }
+
+        // Perform the chosen behavior
+        if (currentBehavior != null) {
+            currentBehavior.performAction(this, hero, gamePanel);
+        }
     }
 
-    /**
-     * Starts a timer to teleport the rune randomly at fixed intervals.
-     */
-    private void startRuneTeleportTimer() {
-        teleportTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                gamePanel.teleportRuneRandomly();
-            }
-        }, 0, 5000); // Teleport every 5 seconds
+    private void readObject(java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        // Re-init transient fields
+        // The gamePanel reference is usually injected after load,
+        // so once you set gamePanel again, re-create the behaviors:
+        challengeBehavior = new ChallengeHeroBehavior();
+        helpBehavior = new HelpHeroBehavior();
+        indecisiveBehavior = new IndecisiveBehavior();
+
+        // currentBehavior can be re-chosen next update() based on ratio,
+        // or you can store which behavior was active and reassign it.
     }
 }

@@ -5,29 +5,47 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URL;
 
 /**
  * Represents a single enchantment that appears on the board.
  */
-public class Enchantment {
+public class Enchantment implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private int x, y;
     private int width, height;
     private EnchantmentType type;
-    private BufferedImage image;
-
-    // New field to track the time when this enchantment spawned
+    private transient BufferedImage image;
     private long spawnTime;
 
+    // Original constructor for new enchantments
     public Enchantment(int x, int y, int width, int height, EnchantmentType type) {
+        this(x, y, width, height, type, System.currentTimeMillis());
+    }
+
+    // New constructor for loading saved enchantments
+    public Enchantment(int x, int y, int width, int height, EnchantmentType type, long spawnTime) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.type = type;
-        this.spawnTime = System.currentTimeMillis(); // Mark spawn time
+        this.spawnTime = spawnTime;
         loadImage();
+    }
+
+    // Method to convert enchantment to state for saving
+    public GameState.EnchantmentState toEnchantmentState() {
+        return new GameState.EnchantmentState(
+                type.name(),
+                x,
+                y,
+                width,
+                height,
+                spawnTime
+        );
     }
 
     private void loadImage() {

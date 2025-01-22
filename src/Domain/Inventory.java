@@ -1,46 +1,77 @@
 package Domain;
 
-import java.awt.Graphics;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A simple class to store collected Enchantments and display them.
- */
 public class Inventory {
     private List<Enchantment> collectedEnchantments;
+    public static final int SLOTS_X = 3;
+    public static final int SLOTS_Y = 2;
+    public static final int SLOT_SIZE = 64;
+    public static final int SPACING = 10;
 
     public Inventory() {
         this.collectedEnchantments = new ArrayList<>();
     }
 
-    /**
-     * Adds an enchantment to the inventory.
-     * @param e the Enchantment to add
-     */
     public void addEnchantment(Enchantment e) {
-        collectedEnchantments.add(e);
+        if (collectedEnchantments.size() < SLOTS_X * SLOTS_Y) {
+            collectedEnchantments.add(e);
+        }
     }
 
-    /**
-     * Draws the inventory items (enchantments) at the given starting position.
-     * @param g the Graphics context
-     * @param startX the x coordinate to start drawing
-     * @param startY the y coordinate to start drawing
-     */
     public void draw(Graphics g, int startX, int startY) {
-        int offset = 0;
-        for (Enchantment e : collectedEnchantments) {
-            BufferedImage img = e.getImage();
-            if (img != null) {
-                g.drawImage(img, startX, startY + offset, 40, 40, null);
+        // Draw inventory background
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setColor(new Color(0, 0, 0, 180));
+        int totalWidth = (SLOTS_X * SLOT_SIZE) + ((SLOTS_X - 1) * SPACING);
+        int totalHeight = (SLOTS_Y * SLOT_SIZE) + ((SLOTS_Y - 1) * SPACING);
+        g2d.fillRect(startX - 10, startY - 10, totalWidth + 20, totalHeight + 20);
+
+        // Draw inventory title
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, 20));
+        g2d.drawString("Inventory", startX, startY - 15);
+
+        // Draw slots and items
+        for (int row = 0; row < SLOTS_Y; row++) {
+            for (int col = 0; col < SLOTS_X; col++) {
+                int x = startX + col * (SLOT_SIZE + SPACING);
+                int y = startY + row * (SLOT_SIZE + SPACING);
+
+                // Draw slot background
+                g2d.setColor(new Color(70, 70, 70, 200));
+                g2d.fillRect(x, y, SLOT_SIZE, SLOT_SIZE);
+
+                // Draw slot border
+                g2d.setColor(new Color(200, 200, 200));
+                g2d.drawRect(x, y, SLOT_SIZE, SLOT_SIZE);
+
+                // Draw enchantment if exists
+                int index = row * SLOTS_X + col;
+                if (index < collectedEnchantments.size()) {
+                    Enchantment e = collectedEnchantments.get(index);
+                    BufferedImage img = e.getImage();
+                    if (img != null) {
+                        g2d.drawImage(img, x + SLOT_SIZE/4, y + SLOT_SIZE/4,
+                                SLOT_SIZE/2, SLOT_SIZE/2, null);
+                    }
+                }
             }
-            offset += 50; // stack them vertically, 50 px apart
         }
     }
 
     public List<Enchantment> getCollectedEnchantments() {
         return collectedEnchantments;
+    }
+
+    public boolean isFull() {
+        return collectedEnchantments.size() >= SLOTS_X * SLOTS_Y;
+    }
+
+    public void setEnchantments(List<Enchantment> loadedEnchantments) {
+        this.collectedEnchantments = new ArrayList<>(loadedEnchantments);
     }
 }

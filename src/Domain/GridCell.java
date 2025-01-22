@@ -1,9 +1,12 @@
 package Domain;
 
+import java.io.Serializable;
+
 /**
  * Simple data structure to store row/col and any placed GameObject.
  */
-public class GridCell {
+public class GridCell implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final int row, col;
     private GameObject object;
 

@@ -1,11 +1,8 @@
 package UI;
 
 import Controller.GameController;
-import Domain.Hero;
-import Domain.Monster;
-import Domain.ArcherMonster;
-import Domain.FighterMonster;
-import Domain.WizardMonster;
+import Controller.SaveLoadManager;
+import Domain.*;
 import UI.BuildModePanel.PlacedObject;
 import Utils.AssetPaths;
 
@@ -23,6 +20,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import Controller.SaveLoadManager;
+import Domain.GameState;
 
 import Domain.Enchantment;
 import Domain.EnchantmentType;
@@ -73,12 +74,26 @@ public class GamePanel extends JPanel {
 
     private JButton pauseButton;
     private JButton exitButton;
+    private JButton saveButton;
 
     private int timeRemaining; // seconds
     private List<Enchantment> enchantments = new ArrayList<>();
 
     // Inventory for storing enchantments
     private Inventory inventory;
+
+    private Point throwStartPos = null;
+    private Point throwCurrentPos = null;
+    private long throwStartTime = 0;
+    private static final long THROW_DURATION = 1000; // 1 second for the throw animation
+    private double throwHeight = 0; // Current height of the bounce
+    private static final int MAX_BOUNCE_HEIGHT = 100; // Maximum height of the bounce
+    private BufferedImage luringGemImage;
+
+    public void updateTime(int timeRemaining) {
+        this.timeRemaining = timeRemaining;
+        repaint(); // Redraw the panel to reflect the time change
+    }
 
     // For the "reveal" effect:
     private boolean revealActive = false;
@@ -92,49 +107,63 @@ public class GamePanel extends JPanel {
     private long cloakEndTime = 0L;
     private static final long CLOAK_DURATION_MS = 20_000; // 20s in ms
 
+    // Add these fields to GamePanel class
+    private boolean luringGemActive = false;
+    private boolean waitingForDirection = false;
+    private Point lurePosition = null;
+
     private GameController gameController;
 
-    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
+    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller, Hero loadedHero) {
         this.grid = g;
         this.placedObjects = p;
         this.gameController = controller;
         setBackground(Color.BLACK);
 
-        // 1) Initialize random first
         this.random = new Random();
-        monsters = new ArrayList<>();
+        this.monsters = new ArrayList<>();
 
-// 2) Now safely pick hero's random position
-        int tries = 0;
-        Hero tempHero = null;
-        while (tries < 100) {
-            int r = 1 + random.nextInt(GRID_ROWS - 2);
-            int c = 1 + random.nextInt(GRID_COLS - 2);
+        if (loadedHero != null) {
+            System.out.println("GamePanel: Using loaded hero at position: x=" + loadedHero.getX() +
+                    ", y=" + loadedHero.getY());
+            this.hero = loadedHero;
+            // Ensure position is set
+            this.hero.setPosition(loadedHero.getX(), loadedHero.getY());
+        } else {
+            System.out.println("GamePanel: Creating new hero with random position");
+            int tries = 0;
+            int finalX = 0, finalY = 0;
+            boolean positionFound = false;
 
-            // Must be floor, must not be a wall or an object
-            if (grid[r][c] == BuildModePanel.CellType.FLOOR && placedObjects[r][c] == null) {
-                tempHero = new Hero(c * cellSize, r * cellSize, cellSize, cellSize);
-                break;
+            while (tries < 100 && !positionFound) {
+                int r = 1 + random.nextInt(GRID_ROWS - 2);
+                int c = 1 + random.nextInt(GRID_COLS - 2);
+
+                if (grid[r][c] == BuildModePanel.CellType.FLOOR && placedObjects[r][c] == null) {
+                    finalX = c * cellSize;
+                    finalY = r * cellSize;
+                    positionFound = true;
+                }
+                tries++;
             }
-            tries++;
+
+            if (!positionFound) {
+                finalX = 2 * cellSize;
+                finalY = 2 * cellSize;
+            }
+
+            this.hero = Hero.getInstance(finalX, finalY, cellSize, cellSize);
         }
 
-// Fallback if no valid spot is found after 100 tries
-        if (tempHero == null) {
-            tempHero = new Hero(2 * cellSize, 2 * cellSize, cellSize, cellSize);
-        }
+        // Create inventory
+        this.inventory = new Inventory();
 
-// Finally assign the hero
-        hero = tempHero;
-
-        monsters = new ArrayList<>();
-        random = new Random();
-
-        // Create our inventory
-        inventory = new Inventory();
+        // Rest of your initialization...
+        // (keep all the other initialization code the same)
 
         hideRuneInRandomObject();
         loadDoorImage();
+        loadLuringGemImage();
         placeDoorAsObject();
         loadGameOverImage();
         loadDiedHeroImage();
@@ -143,8 +172,11 @@ public class GamePanel extends JPanel {
         initializeButtonImages();
         loadRuneImage();
 
+        spawnInitialEnchantments();
+
         createPauseButton();
         createExitButton();
+        createSaveButton();
 
         startMonsterSpawner();
         startMonsterMovement();
@@ -194,20 +226,99 @@ public class GamePanel extends JPanel {
         });
     }
 
-    /**
-     * Increase hero's time left (UI).
-     */
-    public void updateTime(int timeRemaining) {
-        this.timeRemaining = timeRemaining;
-        repaint();
+    // Add the overloaded constructor
+    public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
+        this(g, p, controller, null);
     }
 
+    private void loadLuringGemImage() {
+        try {
+            URL url = getClass().getClassLoader().getResource(AssetPaths.LURING_ENCH.substring(1));
+            if (url != null) {
+                luringGemImage = ImageIO.read(url);
+            }
+        } catch (IOException e) {
+            luringGemImage = null;
+        }
+    }
     /**
      * Triggers game over screen.
      */
     public void triggerGameOver() {
         gameOver = true;
         SwingUtilities.invokeLater(this::repaint);
+    }
+
+    private void handleLuringGem(KeyEvent e) {
+        if (waitingForDirection) {
+            int dx = 0, dy = 0;
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_A: dx = -cellSize * 3; break;
+                case KeyEvent.VK_D: dx = cellSize * 3;  break;
+                case KeyEvent.VK_W: dy = -cellSize * 3; break;
+                case KeyEvent.VK_S: dy = cellSize * 3;  break;
+                default: return;
+            }
+
+            // Calculate new lure position
+            final int targetX = hero.getX() + dx + cellSize/2; // Center of target cell
+            final int targetY = hero.getY() + dy + cellSize/2;
+
+            if (targetX >= 0 && targetX < GRID_COLS * cellSize &&
+                    targetY >= 0 && targetY < GRID_ROWS * cellSize &&
+                    grid[targetY/cellSize][targetX/cellSize] != BuildModePanel.CellType.WALL) {
+
+                // Start throw animation from center of hero
+                throwStartPos = new Point(hero.getX() + cellSize/2, hero.getY() + cellSize/2);
+                throwCurrentPos = new Point(throwStartPos.x, throwStartPos.y);
+                throwStartTime = System.currentTimeMillis();
+
+                Timer throwTimer = new Timer(true);
+                throwTimer.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        long elapsed = System.currentTimeMillis() - throwStartTime;
+                        float progress = Math.min(1.0f, (float)elapsed / THROW_DURATION);
+
+                        // Linear interpolation for exact straight line
+                        throwCurrentPos.x = (int)(throwStartPos.x + (targetX - throwStartPos.x) * progress);
+                        throwCurrentPos.y = (int)(throwStartPos.y + (targetY - throwStartPos.y) * progress);
+
+                        // Calculate bounce height
+                        double bounceProgress = (progress * 3) % 1.0;
+                        double bounceHeight = Math.sin(bounceProgress * Math.PI) * MAX_BOUNCE_HEIGHT * (1 - progress * 0.8);
+                        throwHeight = bounceHeight;
+
+                        if (progress >= 1.0f) {
+                            lurePosition = new Point(targetX - cellSize/2, targetY - cellSize/2);
+                            luringGemActive = true;
+                            throwCurrentPos = null;
+                            throwStartPos = null;
+                            throwHeight = 0;
+                            this.cancel();
+
+                            int idx = findEnchantmentIndex(EnchantmentType.LURINGGEM);
+                            if (idx >= 0) {
+                                hero.getInventory().getCollectedEnchantments().remove(idx);
+                            }
+
+                            Timer lureTimer = new Timer(true);
+                            lureTimer.schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    luringGemActive = false;
+                                    lurePosition = null;
+                                    repaint();
+                                }
+                            }, 5000);
+                        }
+                        repaint();
+                    }
+                }, 0, 16);
+            }
+
+            waitingForDirection = false;
+        }
     }
 
     /**
@@ -237,18 +348,44 @@ public class GamePanel extends JPanel {
         }
     }
 
+    // In GamePanel.java
+    public boolean canHeroMovePixel(int px, int py) {
+        Point p = new Point(px, py);
+        return canHeroMove(p);  // or whatever your existing logic is
+    }
+
     /**
      * Handle usage of enchantments:
      *  - 'R' for Reveal
      *  - 'P' for Cloak
      */
     private void handleEnchantmentKeys(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_R) {
+        if (hero == null || hero.getInventory() == null) {
+            System.out.println("No hero or inventory available!");
+            return;
+        }
+
+        List<Enchantment> heroInventory = hero.getInventory().getCollectedEnchantments();
+
+        if (e.getKeyCode() == KeyEvent.VK_B) {
+            // Check if we have a luring gem
+            int idx = findEnchantmentIndex(EnchantmentType.LURINGGEM);
+            if (idx >= 0) {
+                waitingForDirection = true;
+                System.out.println("Luring Gem activated - Press WASD to choose direction");
+            }
+        } else if (waitingForDirection) {
+            handleLuringGem(e);
+        } else if (e.getKeyCode() == KeyEvent.VK_R) {
+            System.out.println("R key pressed - Attempting to use Reveal");
             // Use a Reveal if we have any
             int idx = findEnchantmentIndex(EnchantmentType.REVEAL);
-            if (idx >= 0) {
+            System.out.println("Found Reveal enchantment at index: " + idx);
+
+            if (idx >= 0 && idx < heroInventory.size()) {
+                System.out.println("Using Reveal enchantment");
                 // Remove one from inventory
-                inventory.getCollectedEnchantments().remove(idx);
+                heroInventory.remove(idx);
 
                 // Mark reveal as active for 10s
                 revealActive = true;
@@ -257,31 +394,46 @@ public class GamePanel extends JPanel {
                 // Choose a 4×4 region that definitely contains the rune
                 pickRevealRegion();
                 System.out.println("Reveal used! Highlighting a 4×4 region for 10s.");
+                repaint();
             }
-        }
-        else if (e.getKeyCode() == KeyEvent.VK_P) {
+        } else if (e.getKeyCode() == KeyEvent.VK_P) {
+            System.out.println("P key pressed - Attempting to use Cloak");
             // Use a Cloak if we have any
             int idx = findEnchantmentIndex(EnchantmentType.CLOAK);
-            if (idx >= 0) {
-                inventory.getCollectedEnchantments().remove(idx);
+            System.out.println("Found Cloak enchantment at index: " + idx);
+
+            if (idx >= 0 && idx < heroInventory.size()) {
+                System.out.println("Using Cloak enchantment");
+                heroInventory.remove(idx);
 
                 cloakActive = true;
                 cloakEndTime = System.currentTimeMillis() + CLOAK_DURATION_MS;
-                System.out.println("Cloak of Protection used! Archer cannot see (or hurt) hero for 20s.");
+                System.out.println("Cloak activated! Will last until: " + cloakEndTime);
+                repaint();
             }
         }
     }
 
-    /**
-     * Find the first index of an enchantment of the given type in the inventory, or -1 if none.
-     */
     private int findEnchantmentIndex(EnchantmentType type) {
-        List<Enchantment> list = inventory.getCollectedEnchantments();
+        if (hero == null || hero.getInventory() == null) {
+            System.out.println("No inventory available!");
+            return -1;
+        }
+
+        List<Enchantment> list = hero.getInventory().getCollectedEnchantments();
+        if (list == null || list.isEmpty()) {
+            System.out.println("Inventory is empty!");
+            return -1;
+        }
+
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getType() == type) {
+            Enchantment e = list.get(i);
+            if (e != null && e.getType() == type) {
+                System.out.println("Found " + type + " at index " + i + " in inventory of size " + list.size());
                 return i;
             }
         }
+        System.out.println("No " + type + " enchantment found in inventory");
         return -1;
     }
 
@@ -334,7 +486,10 @@ public class GamePanel extends JPanel {
             @Override
             public void run() {
                 if (!isPaused && !gameOver && !heroDied) {
-                    spawnRandomEnchantment();
+                    // Fix concurrency by updating on the EDT
+                    SwingUtilities.invokeLater(() -> {
+                        spawnRandomEnchantment();
+                    });
                 }
             }
         }, 0, 12000);
@@ -387,22 +542,22 @@ public class GamePanel extends JPanel {
     private void collectEnchantment(Enchantment ench) {
         switch (ench.getType()) {
             case EXTRALIFE:
-                // Unlimited hearts
                 hero.setHealth(hero.getHealth() + 1);
-                System.out.println("Collected EXTRA LIFE. Hero health: " + hero.getHealth());
                 break;
             case EXTRATIME:
-                // Now it is +5 seconds
                 if (gameController != null && gameController.getGameTimer() != null) {
                     gameController.getGameTimer().addTime(6);
-                    System.out.println("Collected EXTRA TIME. Timer is now "
-                            + gameController.getGameTimer().getTimeRemaining() + "s");
                 }
                 break;
             default:
-                // Store in inventory: REVEAL, CLOAK, LURINGGEM, etc.
-                inventory.addEnchantment(ench);
-                System.out.println("Collected " + ench.getType().name() + " (stored in inventory).");
+                // Store in inventory if it's not full
+                if (!hero.getInventory().isFull()) {
+                    hero.getInventory().addEnchantment(ench);
+                    System.out.println("Collected " + ench.getType().name() + " (stored in inventory).");
+                } else {
+                    System.out.println("Inventory is full!");
+                    return; // Don't remove the enchantment if inventory is full
+                }
                 break;
         }
         enchantments.remove(ench);
@@ -425,8 +580,11 @@ public class GamePanel extends JPanel {
             @Override
             public void run() {
                 if (!isPaused && !gameOver && !heroDied) {
-                    spawnMonster();
-                    repaint();
+                    // Fix concurrency by updating on the EDT
+                    SwingUtilities.invokeLater(() -> {
+                        spawnMonster();
+                        repaint();
+                    });
                 }
             }
         }, 0, 8000);
@@ -441,12 +599,28 @@ public class GamePanel extends JPanel {
             @Override
             public void run() {
                 if (!isPaused && !gameOver && !heroDied) {
-                    for (Monster m : monsters) {
-                        m.update();
-                    }
-                    checkEnchantmentExpiry();
-                    checkHealthCondition();
-                    repaint();
+                    // Fix concurrency by updating on the EDT
+                    SwingUtilities.invokeLater(() -> {
+                        List<Monster> monstersToRemove = new ArrayList<>();
+
+                        for (Monster m : monsters) {
+                            m.update();
+                            if (m.isPendingRemoval()) {
+                                monstersToRemove.add(m);
+                            }
+                        }
+                        checkEnchantmentExpiry();
+                        checkHealthCondition();
+                        repaint();
+
+                        monsters.removeAll(monstersToRemove);
+
+                        // We must call checkHealthCondition() in the Swing thread
+                        SwingUtilities.invokeLater(() -> checkHealthCondition());
+                    });
+                }
+                else if (gameOver) {
+                    return;
                 }
             }
         }, 0, 500);
@@ -486,18 +660,29 @@ public class GamePanel extends JPanel {
     public boolean canMonsterMove(Monster monster, int nx, int ny) {
         int c = nx / cellSize;
         int r = ny / cellSize;
+
+        // Basic boundary and wall checks
         if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
         if (grid[r][c] == BuildModePanel.CellType.WALL) return false;
+
+        // Object collision check (except door)
         PlacedObject po = placedObjects[r][c];
         if (po != null && po != placedObjects[DOOR_ROW][DOOR_COL]) return false;
 
-        // If there's already another monster at that position, no
+        // If we're pathfinding to the lure, ignore other monsters
+        if (luringGemActive && lurePosition != null) {
+            // Only check hero collision
+            return !(hero.getX() == nx && hero.getY() == ny);
+        }
+
+        // Normal movement - check all collisions
         for (Monster mm : monsters) {
             if (mm != monster && mm.getX() == nx && mm.getY() == ny) {
                 return false;
             }
         }
-        // Also not if hero is there
+
+        // Check hero collision
         if (hero.getX() == nx && hero.getY() == ny) return false;
 
         return true;
@@ -506,7 +691,7 @@ public class GamePanel extends JPanel {
     /**
      * Whether the hero can move to p.
      */
-    private boolean canHeroMove(Point p) {
+    public boolean canHeroMove(Point p) {
         int c = p.x / cellSize;
         int r = p.y / cellSize;
         if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
@@ -598,49 +783,6 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Checks if hero's health is 0 → heroDied animation.
-     */
-    private void checkHealthCondition() {
-        if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
-            heroDied = true;
-            loadDiedHeroImage();
-            isPaused = true;
-            System.out.println("Hero died");
-
-            // Cancel timers
-            if (monsterSpawnerTimer != null) monsterSpawnerTimer.cancel();
-            if (monsterMovementTimer != null) monsterMovementTimer.cancel();
-            if (enchantmentSpawnTimer != null) enchantmentSpawnTimer.cancel();
-
-            // 2s before official game over
-            gameOverTimer = new Timer(true);
-            gameOverTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    gameOver = true;
-                    heroDied = false;
-                    SwingUtilities.invokeLater(() -> repaint());
-
-                    // 3s after that, go to main menu
-                    redirectTimer = new Timer(true);
-                    redirectTimer.schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            SwingUtilities.invokeLater(() -> {
-                                JFrame mm = new RokueLikeMainMenu();
-                                mm.setVisible(true);
-                                SwingUtilities.getWindowAncestor(GamePanel.this).dispose();
-                            });
-                        }
-                    }, 3000);
-                }
-            }, 2000);
-
-            SwingUtilities.invokeLater(this::repaint);
-        }
-    }
-
-    /**
      * Does hero already have a revealed rune?
      */
     private boolean heroHasRune() {
@@ -680,6 +822,15 @@ public class GamePanel extends JPanel {
         drawGridLines(g);
         drawPlacedObjects(g);
 
+        // Draw hall name at the top
+        String hallName = gameController.getHall().getName();
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 32));
+        FontMetrics fm = g.getFontMetrics();
+        int nameWidth = fm.stringWidth(hallName);
+        int nameX = (GRID_COLS * cellSize - nameWidth) / 2; // Center above the board
+        g.drawString(hallName, nameX, 30); // 30 pixels from top
+
         // Draw hero
         hero.draw(g);
 
@@ -705,11 +856,6 @@ public class GamePanel extends JPanel {
             e.draw(g);
         }
 
-        // Time
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 20));
-        g.drawString("Time Remaining: " + timeRemaining + "s", 1000, 400);
-
         // Draw double-height objects above hero
         drawObjectsAboveHero(g);
 
@@ -732,9 +878,50 @@ public class GamePanel extends JPanel {
             System.out.println("Cloak of Protection wore off.");
         }
 
-        // Draw the inventory
-        if (inventory != null) {
-            inventory.draw(g, 850, 200);
+        if (throwCurrentPos != null && luringGemImage != null) {
+            // Draw throwing animation
+            Graphics2D g2d = (Graphics2D) g.create();
+            int imageSize = cellSize/2; // Half cell size for the throwing animation
+            // Draw the gem at the current position, adjusted for bounce height
+            g2d.drawImage(luringGemImage,
+                    throwCurrentPos.x - imageSize/2,
+                    throwCurrentPos.y - imageSize/2 - (int)throwHeight,
+                    imageSize, imageSize, null);
+            g2d.dispose();
+        }
+
+        if (luringGemActive && lurePosition != null) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            // Draw smaller red X
+            g2d.setColor(Color.RED);
+            g2d.setStroke(new BasicStroke(2));
+            int xSize = cellSize/2; // Half size X
+            int xOffset = cellSize/4; // Center the X in the cell
+            // Draw first diagonal
+            g2d.drawLine(lurePosition.x + xOffset, lurePosition.y + xOffset,
+                    lurePosition.x + xOffset + xSize, lurePosition.y + xOffset + xSize);
+            // Draw second diagonal
+            g2d.drawLine(lurePosition.x + xOffset + xSize, lurePosition.y + xOffset,
+                    lurePosition.x + xOffset, lurePosition.y + xOffset + xSize);
+            g2d.dispose();
+        }
+
+        if (hero != null && hero.getInventory() != null) {
+            // Calculate position based on game grid size
+            int gameWidth = GRID_COLS * cellSize;  // 832 pixels
+            int inventoryX = gameWidth + 10;       // Just 10 pixels from game border
+            int inventoryY = (getHeight() - 300) / 2;  // Vertically centered
+
+            // Draw inventory
+            hero.getInventory().draw(g, inventoryX, inventoryY);
+
+            // Draw time display below inventory
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 24));
+            int timeX = inventoryX;
+            int timeY = inventoryY + 250;
+            g.drawString("Time:", timeX, timeY);
+            g.drawString(String.valueOf(timeRemaining) + "s", timeX, timeY + 30);
         }
     }
 
@@ -742,6 +929,8 @@ public class GamePanel extends JPanel {
      * Draw a 4×4 green rectangle for reveal effect.
      */
     private void drawRevealHighlight(Graphics g) {
+        if (!revealActive) return;
+
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setColor(new Color(0, 255, 0, 60)); // transparent green
         int highlightW = cellSize * 4;
@@ -750,6 +939,8 @@ public class GamePanel extends JPanel {
         int y = revealTopRow * cellSize;
         g2.fillRect(x, y, highlightW, highlightH);
         g2.dispose();
+
+        System.out.println("Drawing reveal highlight at: " + x + "," + y);
     }
 
     /**
@@ -811,23 +1002,63 @@ public class GamePanel extends JPanel {
      * Draw unlimited hearts = hero's current health.
      */
     private void drawHearts(Graphics g) {
-        if (heartImage == null) {
+        if (heartImage != null) {
+            int heartWidth = 40;
+            int heartHeight = 40;
+            int bottomMargin = 20; // Distance from bottom of board
+            int startY = (GRID_ROWS * cellSize) - heartHeight - bottomMargin;
+
+            for (int i = 0; i < hero.getHealth(); i++) {
+                int xPos = 10 + i * (heartWidth + 5);
+                g.drawImage(heartImage, xPos, startY, heartWidth, heartHeight, null);
+            }
+        } else {
+            // Fallback text if heart image fails to load
             g.setColor(Color.WHITE);
             g.setFont(new Font("Arial", Font.BOLD, 20));
-            g.drawString("Health: " + hero.getHealth(), 10, 20);
-            return;
-        }
-        int heartWidth = 40;
-        int heartHeight = 40;
-        for (int i = 0; i < hero.getHealth(); i++) {
-            int xPos = 10 + i * (heartWidth + 5);
-            int yPos = 10;
-            g.drawImage(heartImage, xPos, yPos, heartWidth, heartHeight, null);
+            g.drawString("Health: " + hero.getHealth(), 10, (GRID_ROWS * cellSize) - 20);
         }
     }
 
     /**
-     * Draw the board's floor and walls.
+     * Checks if the hero's health has dropped to 0; triggers hero death if so.
+     */
+    private void checkHealthCondition() {
+        if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
+            heroDied = true;
+            gameOver = true;
+            loadDiedHeroImage(); // Load diedHeroImage based on current direction
+            isPaused = true; // Disable movement
+            System.out.println("Hero died");
+
+            // Cancel existing timers to stop monster actions
+            if (monsterSpawnerTimer != null) {
+                monsterSpawnerTimer.cancel();
+            }
+            if (monsterMovementTimer != null) {
+                monsterMovementTimer.cancel();
+            }
+
+            // Start a 2-second timer to transition to game over
+            gameOverTimer = new Timer(true);
+            gameOverTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    gameOver = true;
+                    heroDied = false; // Reset heroDied flag
+                    SwingUtilities.invokeLater(() -> repaint());
+                }
+            }, 2000); // 2000 milliseconds = 2 seconds
+
+            // Repaint to show the died hero image immediately
+            SwingUtilities.invokeLater(() -> repaint());
+        }
+    }
+
+
+    /**
+     * Draws the floor/wall tiles.
+     * @param g the Graphics context
      */
     private void drawBoard(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -952,6 +1183,31 @@ public class GamePanel extends JPanel {
         g.drawImage(original, transform, null);
         g.dispose();
         return mirrored;
+    }
+
+
+    private void spawnInitialEnchantments() {
+        // Spawn one of each type
+        for (EnchantmentType type : EnchantmentType.values()) {
+            int tries = 0;
+            while (tries < 50) {
+                int r = 2 + random.nextInt(10);
+                int c = 1 + random.nextInt(11);
+                if (grid[r][c] == BuildModePanel.CellType.FLOOR && placedObjects[r][c] == null) {
+                    Enchantment ench = new Enchantment(
+                            c * cellSize,
+                            r * cellSize,
+                            cellSize,
+                            cellSize,
+                            type
+                    );
+                    enchantments.add(ench);
+                    System.out.println("Spawned initial " + type + " enchantment at " + r + "," + c);
+                    break;
+                }
+                tries++;
+            }
+        }
     }
 
     /**
@@ -1087,6 +1343,40 @@ public class GamePanel extends JPanel {
         return f;
     }
 
+    public BuildModePanel.CellType[][] getGrid() {
+        return grid;
+    }
+
+    public BuildModePanel.PlacedObject[][] getPlacedObjects() {
+        return placedObjects;
+    }
+
+    public List<Monster> getMonsters() {
+        return monsters;
+    }
+
+    public void recreateMonsters(List<GameState.MonsterState> monsterStates) {
+        monsters.clear();
+        for (GameState.MonsterState state : monsterStates) {
+            Point pixelPos = GameState.gridToPixel(state.getGridX(), state.getGridY());
+            Monster monster = null;
+            switch (state.getType()) {
+                case "ArcherMonster":
+                    monster = new ArcherMonster(pixelPos.x, pixelPos.y, hero, grid, this);
+                    break;
+                case "FighterMonster":
+                    monster = new FighterMonster(pixelPos.x, pixelPos.y, hero, grid, this);
+                    break;
+                case "WizardMonster":
+                    monster = new WizardMonster(pixelPos.x, pixelPos.y, hero, grid, this);
+                    break;
+            }
+            if (monster != null) {
+                monsters.add(monster);
+            }
+        }
+    }
+
     /**
      * Load pause/resume/exit images.
      */
@@ -1111,7 +1401,7 @@ public class GamePanel extends JPanel {
      */
     private void createPauseButton() {
         pauseButton = new JButton();
-        pauseButton.setBounds(850, 50, 64, 64);
+        pauseButton.setBounds(832 + 10, 50, 64, 64);  // 10 pixels from game area
         updatePauseButtonIcon(pauseButton);
         pauseButton.setBorderPainted(false);
         pauseButton.setFocusPainted(false);
@@ -1145,7 +1435,7 @@ public class GamePanel extends JPanel {
      */
     private void createExitButton() {
         exitButton = new JButton();
-        exitButton.setBounds(850, 120, 64, 64);
+        exitButton.setBounds(832 + 10, 120, 64, 64);  // 10 pixels from game area
         exitButton.setBorderPainted(false);
         exitButton.setFocusPainted(false);
         exitButton.setContentAreaFilled(false);
@@ -1160,6 +1450,19 @@ public class GamePanel extends JPanel {
         });
         add(exitButton);
     }
+
+    private void createSaveButton() {
+        saveButton = new JButton("Save");
+        saveButton.setBounds(832 + 10, 190, 64, 64);  // 10 pixels from game area
+        // When clicked, we'll delegate to gameController.saveGame()
+        saveButton.addActionListener(e -> {
+            System.out.println("saveButton clicked!");
+            // Just call the method in GameController:
+            gameController.saveGame();
+        });
+        add(saveButton);
+    }
+
 
     /**
      * Hides pause/exit buttons if the game is over or hero died.
@@ -1178,5 +1481,47 @@ public class GamePanel extends JPanel {
     // -------------------------------------------------------------------------
     public boolean isCloakActive() {
         return cloakActive;
+    }
+
+    public void setHero(Hero h) {
+        this.hero = h;
+    }
+
+    public int getTimeRemaining() {
+        return gameController.getTimeRemaining();
+    }
+
+    public double getTimeRatio() {
+        // gameController holds both 'timeRemaining' and 'startingTime'
+        int remaining = gameController.getTimeRemaining();
+        int initial = gameController.getStartingTime();
+        // Avoid division by zero if initial = 0
+        if (initial == 0) return 0.0;
+        return (double) remaining / (double) initial;
+    }
+
+    public void removeMonster(Monster m) {
+        // Instead of removing immediately, mark the monster for removal
+        m.setPendingRemoval(true);
+    }
+
+    public Hero getHero() {
+        return this.hero;
+    }
+
+    public List<Enchantment> getEnchantments() {
+        return new ArrayList<>(enchantments);
+    }
+
+    public void setEnchantments(List<Enchantment> loadedEnchantments) {
+        this.enchantments = new ArrayList<>(loadedEnchantments);
+    }
+
+    public boolean isLureActive() {
+        return luringGemActive;
+    }
+
+    public Point getLurePosition() {
+        return lurePosition;
     }
 }

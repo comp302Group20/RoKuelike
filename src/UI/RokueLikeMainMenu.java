@@ -1,5 +1,6 @@
 package UI;
 
+import Controller.BuildModeController;
 import Controller.GameController;
 import Domain.Hall;
 import Utils.AssetPaths;
@@ -21,6 +22,7 @@ public class RokueLikeMainMenu extends JFrame {
     private JButton startGameButton;
     private JButton helpButton;
     private JButton exitButton;
+    private JButton loadButton;
 
     public RokueLikeMainMenu() {
         setTitle("Rokue-Like - Main Menu");
@@ -44,18 +46,27 @@ public class RokueLikeMainMenu extends JFrame {
         helpButton = createButton(AssetPaths.HELP_BUTTON);
         exitButton = createButton(AssetPaths.EXIT_BUTTON);
 
-        // Logic
         startGameButton.addActionListener(e -> {
-            dispose();
-            // For demonstration, we’ll create a single Hall
-            Hall earthHall = new Hall("Earth Hall", 8, 8, 6);
-            new GameController(earthHall);
+            dispose(); // Close the menu
+            GameController.resetProgress(); // Reset progress for new game
+            Hall earthHall = new Hall("Hall of Earth", 13, 13, 6);
+            GameController gameController = new GameController(earthHall);
+            new BuildModeController(earthHall, gameController);
         });
+
         helpButton.addActionListener(e -> {
             HelpDialog helpDialog = new HelpDialog(RokueLikeMainMenu.this);
             helpDialog.setVisible(true);
         });
         exitButton.addActionListener(e -> System.exit(0));
+
+        loadButton = createButton(AssetPaths.NEWGAME_BUTTON); // or any icon you prefer
+        backgroundPanel.add(loadButton);
+        loadButton.addActionListener(e -> {
+            LoadGameDialog loadDialog = new LoadGameDialog(RokueLikeMainMenu.this);
+            loadDialog.setVisible(true);
+            // Once the user chooses a file inside that dialog, we will load and start the game.
+        });
 
         backgroundPanel.setLayout(null);
         backgroundPanel.add(titleLabel);
@@ -128,10 +139,12 @@ public class RokueLikeMainMenu extends JFrame {
         startGameButton.setBounds(buttonX, buttonYStart, buttonWidth, buttonHeight);
         helpButton.setBounds(buttonX, buttonYStart + buttonSpacing, buttonWidth, buttonHeight);
         exitButton.setBounds(buttonX, buttonYStart + 2 * buttonSpacing, buttonWidth, buttonHeight);
+        loadButton.setBounds(buttonX, buttonYStart + 3 * buttonSpacing, buttonWidth, buttonHeight);
 
         scaleImageIcon(startGameButton, buttonWidth, buttonHeight);
         scaleImageIcon(helpButton, buttonWidth, buttonHeight);
         scaleImageIcon(exitButton, buttonWidth, buttonHeight);
+        scaleImageIcon(loadButton, buttonWidth, buttonHeight);
     }
 
     private void scaleImageIcon(JComponent component, int width, int height) {

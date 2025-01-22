@@ -4,12 +4,17 @@ import UI.BuildModePanel;
 import Utils.AssetPaths;
 import UI.GamePanel;
 
+import java.io.Serializable;
+import java.util.Timer;
+import java.util.TimerTask;
+
 /**
  * ArcherMonster shoots arrows at the hero from a distance.
  */
-public class ArcherMonster extends Monster {
+public class ArcherMonster extends Monster implements Serializable {
+    private static final long serialVersionUID = 1L;
     private long lastShot;
-    private GamePanel gamePanel;
+    private transient GamePanel gamePanel;
 
     /**
      * Constructor for ArcherMonster.
@@ -36,7 +41,8 @@ public class ArcherMonster extends Monster {
         updateFacingDirection();
 
         // If the cloak is active, the archer can't see or hurt the hero.
-        if (gamePanel.isCloakActive()) {
+        if (gamePanel != null && gamePanel.isCloakActive()) {
+            System.out.println("Hero is cloaked - Archer cannot detect them!");
             return;
         }
 
@@ -49,16 +55,13 @@ public class ArcherMonster extends Monster {
             int hc = hero.getX() / CELL_SIZE;
             double distance = Math.sqrt((mr - hr) * (mr - hr) + (mc - hc) * (mc - hc));
 
-            // Adjust shooting conditions as needed:
-            // This check means if hero is within ~3 tiles (Manhattan or diagonal combos),
-            // and not exactly 2√2 away (which might correspond to a diagonal at distance 2),
-            // the archer deals damage.
             if (distance <= 3 && distance != 2 * Math.sqrt(2)) {
-                hero.setHealth(hero.getHealth() - 1);
-                System.out.println("Hero hit by ArcherMonster! Health: " + hero.getHealth());
                 if (hero.getHealth() <= 0) {
                     System.out.println("Game Over");
+                    return;
                 }
+                hero.setHealth(hero.getHealth() - 1);
+                System.out.println("Hero hit by ArcherMonster! Health: " + hero.getHealth());
             }
         }
     }

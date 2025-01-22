@@ -20,25 +20,44 @@ public class BuildModeController {
     private void initializeUI() {
         frame = new JFrame("Build Mode - " + hall.getName());
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(1600, 900);
+        frame.setSize(1000, 900);  // Reduced width
         frame.setLocationRelativeTo(null);
-        buildPanel = new BuildModePanel(hall);
+        buildPanel = new BuildModePanel(hall, parentController, frame);
         frame.setLayout(new BorderLayout());
         frame.add(buildPanel, BorderLayout.CENTER);
+
+        // Create bottom panel with finish button
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setBackground(new Color(240, 240, 240));
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+
         JButton finishBuildBtn = new JButton("Finish Building");
+        finishBuildBtn.setFont(new Font("Arial", Font.BOLD, 16));
+        finishBuildBtn.setPreferredSize(new Dimension(150, 40));
+        finishBuildBtn.setBackground(new Color(50, 205, 50));
+        finishBuildBtn.setForeground(Color.WHITE);
+
         finishBuildBtn.addActionListener(e -> {
             int numberOfObjects = buildPanel.getNumberOfPlacedObjects();
 
             if (hall.validateObjectCount(numberOfObjects)) {
-                frame.dispose();
+                // First notify the parent controller
                 parentController.onBuildModeFinished(buildPanel.getGrid(), buildPanel.getPlacedObjectsGrid());
+
+                // Then dispose of the frame
+                frame.setVisible(false);
+                frame.dispose();
+                System.out.println("Closing the Build Frame!");
             } else {
                 JOptionPane.showMessageDialog(frame,
                         "Not enough objects in " + hall.getName() + "!\n" +
-                                "You need at least " + hall.getMinObjectCount());
+                                "You need at least " + hall.getMinObjectCount() + " objects.\n" +
+                                "Currently placed: " + numberOfObjects + " objects.",
+                        "Insufficient Objects",
+                        JOptionPane.WARNING_MESSAGE);
             }
         });
-        JPanel bottomPanel = new JPanel();
+
         bottomPanel.add(finishBuildBtn);
         frame.add(bottomPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
@@ -46,5 +65,13 @@ public class BuildModeController {
 
     public BuildModePanel getBuildPanel() {
         return buildPanel;
+    }
+
+    // Add a method to explicitly close the build mode
+    public void closeBuildMode() {
+        if (frame != null) {
+            frame.setVisible(false);
+            frame.dispose();
+        }
     }
 }
