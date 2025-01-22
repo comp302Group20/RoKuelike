@@ -72,4 +72,15 @@ public class WizardMonster extends Monster implements Serializable {
         // currentBehavior can be re-chosen next update() based on ratio,
         // or you can store which behavior was active and reassign it.
     }
+
+    public String getCurrentBehaviorName() {
+        if (currentBehavior instanceof ChallengeHeroBehavior) {
+            return "Challenge";
+        } else if (currentBehavior instanceof HelpHeroBehavior) {
+            return "Help";
+        } else if (currentBehavior instanceof IndecisiveBehavior) {
+            return "Indecisive";
+        }
+        return "Unknown";
+    }
 }

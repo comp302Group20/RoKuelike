@@ -218,8 +218,8 @@ public class GamePanel extends JPanel {
                 // 2) Check if the user clicked an object with a hidden rune
                 PlacedObject obj = getClickedObject(mx, my);
                 if (obj != null && obj.hasRune) {
-                    // We'll reveal it automatically
                     obj.runeVisible = true;
+                    gameController.gameState.setRuneFound(true);  // Set the flag when rune is found
                     System.out.println("Rune discovered!");
                 }
             }
@@ -721,7 +721,13 @@ public class GamePanel extends JPanel {
                         topY -= (h - cellSize);
                     }
                     if (mx >= leftX && mx < leftX + w && my >= topY && my < topY + h) {
-                        return obj;
+                        // Check if hero is within one block range
+                        int heroGridX = hero.getX() / cellSize;
+                        int heroGridY = hero.getY() / cellSize;
+                        if (Math.abs(heroGridX - c) <= 1 && Math.abs(heroGridY - r) <= 1) {
+                            return obj;
+                        }
+                        return null;  // Object found but hero not in range
                     }
                 }
             }
@@ -733,6 +739,11 @@ public class GamePanel extends JPanel {
      * Teleport the rune if wizard monster triggers it.
      */
     public void teleportRuneRandomly() {
+        // First check if the rune has been found
+        if (gameController.gameState.isRuneFound()) {
+            return;  // Don't move the rune if it's been found
+        }
+
         if (gameOver) return;
         List<PlacedObject> allObjects = new ArrayList<>();
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -922,6 +933,21 @@ public class GamePanel extends JPanel {
             int timeY = inventoryY + 250;
             g.drawString("Time:", timeX, timeY);
             g.drawString(String.valueOf(timeRemaining) + "s", timeX, timeY + 30);
+        }
+
+        // Add this after drawing inventory and time
+        if (monsters != null) {
+            for (Monster m : monsters) {
+                if (m instanceof WizardMonster) {
+                    g.setColor(Color.WHITE);
+                    g.setFont(new Font("Arial", Font.BOLD, 20));
+                    String strategy = ((WizardMonster)m).getCurrentBehaviorName();
+                    int stratX = getWidth() - 200;  // Position in bottom right
+                    int stratY = getHeight() - 50;
+                    g.drawString("Wizard Strategy: " + strategy, stratX, stratY);
+                    break;  // Only need to show for first wizard
+                }
+            }
         }
     }
 

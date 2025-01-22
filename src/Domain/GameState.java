@@ -22,6 +22,21 @@ public class GameState implements Serializable {
 
     private Point heroPixelPosition;
 
+    private boolean runeFound = false;
+
+    public GameState() {
+        this.grid = null;
+        this.placedObjects = null;
+        this.heroHealth = 3;  // Default health
+        this.monsterStates = new ArrayList<>();
+        this.timeRemaining = 0;
+        this.hallName = "";
+        this.heroEnchantments = new ArrayList<>();
+        this.floorEnchantments = new ArrayList<>();
+        this.heroPixelPosition = new Point(0, 0);
+        this.runeFound = false;
+    }
+
     public GameState(BuildModePanel.CellType[][] grid,
                      BuildModePanel.PlacedObject[][] placedObjects,
                      Hero hero,
@@ -171,5 +186,13 @@ public class GameState implements Serializable {
     // Helper method to convert grid coordinates to pixel coordinates
     public static Point gridToPixel(int gridX, int gridY) {
         return new Point(gridX * 64, gridY * 64);
+    }
+
+    public void setRuneFound(boolean found) {
+        this.runeFound = found;
+    }
+
+    public boolean isRuneFound() {
+        return runeFound;
     }
 }

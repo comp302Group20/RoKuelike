@@ -46,6 +46,8 @@ public class GameController {
     // This reflects the "current" hall we are building/playing (1-based).
     private int currentHallNumber;
 
+    public GameState gameState;
+
     // Array of the "completed" images to display (1..4)
     private static final String[] COMPLETED_IMAGES = {
             AssetPaths.COMPLETED1,
@@ -62,16 +64,10 @@ public class GameController {
 
     public GameController(Hall hall) {
         this.hall = hall;
-        // currentHallNumber is always gamesCompleted + 1
-        // e.g., if 0 halls completed, we're on hall #1
         this.currentHallNumber = gamesCompleted + 1;
-
-        // Remove this line as BuildModeController is created in the main menu
-        // new BuildModeController(hall, this);
-
         this.isPaused = false;
-        // We'll initialize timeRemaining once objects are placed
         this.timeRemaining = 0;
+        this.gameState = new GameState();  // Uses the no-args constructor
     }
 
     public GameTimer getGameTimer() {
@@ -340,18 +336,20 @@ public class GameController {
         System.out.println("Saving game...");
         Hero currentHero = gamePanel.getHero();
 
-        GameState gameState = new GameState(
+        // Update the gameState with current game data
+        this.gameState = new GameState(
                 gamePanel.getGrid(),
                 gamePanel.getPlacedObjects(),
-                currentHero,
+                gamePanel.getHero(),
                 gamePanel.getMonsters(),
-                gameTimer != null ? gameTimer.getTimeRemaining() : timeRemaining,
+                timeRemaining,
                 hall.getName(),
-                gamePanel.getEnchantments(),  // Add this method to GamePanel
-                currentHero.getInventory()
+                gamePanel.getEnchantments(),
+                gamePanel.getHero().getInventory()
         );
 
-        SaveLoadManager.saveGame(gameState, findNextSaveName());
+        // Save the updated gameState
+        SaveLoadManager.saveGame(this.gameState, findNextSaveName());
     }
 
     /**
