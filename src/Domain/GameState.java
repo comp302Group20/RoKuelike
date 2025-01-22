@@ -47,7 +47,9 @@ public class GameState implements Serializable {
                      Inventory inventory) {
         this.grid = grid;
         this.placedObjects = placedObjects;
-        this.heroPixelPosition = new Point(hero.getX(), hero.getY()); // Store exact pixel position
+        this.heroPixelPosition = new Point(hero.getX(), hero.getY());
+        System.out.println("Saving hero position: " +
+                heroPixelPosition.x + "," + heroPixelPosition.y);
         this.heroHealth = hero.getHealth();
         this.timeRemaining = timeRemaining;
         this.hallName = hallName;

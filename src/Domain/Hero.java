@@ -68,12 +68,14 @@ public class Hero implements Serializable {
         if (instance == null) {
             instance = new Hero(x, y, width, height);
         } else {
-            // Update position if getInstance is called with new coordinates
-            instance.setPosition(x, y);
+            // Important: Actually update the position
+            instance.x = x;
+            instance.y = y;
+            instance.width = width;
+            instance.height = height;
         }
         return instance;
     }
-
     public void setPosition(int x, int y) {
         this.x = x;
         this.y = y;

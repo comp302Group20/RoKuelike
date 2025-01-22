@@ -378,19 +378,28 @@ public class GameController {
         System.out.println("Saving game...");
         Hero currentHero = gamePanel.getHero();
 
-        // Update the gameState with current game data
+        // Log the current hero position before saving
+        System.out.println("Current hero position before saving: x=" + currentHero.getX() +
+                ", y=" + currentHero.getY());
+
+        // Create new GameState with current game data
         this.gameState = new GameState(
                 gamePanel.getGrid(),
                 gamePanel.getPlacedObjects(),
-                gamePanel.getHero(),
+                currentHero,  // Pass the current hero instance
                 gamePanel.getMonsters(),
                 timeRemaining,
                 hall.getName(),
                 gamePanel.getEnchantments(),
-                gamePanel.getHero().getInventory()
+                currentHero.getInventory()
         );
 
-        // Save the updated gameState
+        // Verify the position was stored correctly in gameState
+        System.out.println("Position stored in gameState: x=" +
+                gameState.getHeroPixelPosition().x + ", y=" +
+                gameState.getHeroPixelPosition().y);
+
+        // Save the gameState
         SaveLoadManager.saveGame(this.gameState, findNextSaveName());
     }
 
@@ -428,12 +437,15 @@ public class GameController {
         // Update the hall
         this.hall = new Hall(gameState.getHallName(), 13, 13, 6);
 
-        // Reset and create hero with EXACT saved position
+        // Reset hero instance first
         Hero.reset();
-        int savedX = gameState.getHeroPixelPosition().x;
-        int savedY = gameState.getHeroPixelPosition().y;
 
-        Hero hero = Hero.getInstance(savedX, savedY, 64, 64);
+        // Get saved position
+        Point savedPos = gameState.getHeroPixelPosition();
+        System.out.println("Loading hero at position: " + savedPos.x + "," + savedPos.y);
+
+        // Create hero with exact saved position
+        Hero hero = Hero.getInstance(savedPos.x, savedPos.y, 64, 64);
         hero.setHealth(gameState.getHeroHealth());
 
         System.out.println("Hero position after creation: x=" + hero.getX() +
@@ -450,8 +462,12 @@ public class GameController {
                 gameState.getGrid(),
                 gameState.getPlacedObjects(),
                 this,
-                hero
+                hero  // Pass the hero instance
         );
+
+        // Verify position after GamePanel creation
+        System.out.println("Hero position after GamePanel creation: " +
+                hero.getX() + "," + hero.getY());
 
         // Restore enchantments
         List<Enchantment> loadedFloorEnchantments = gameState.getFloorEnchantments().stream()
@@ -488,6 +504,9 @@ public class GameController {
                 () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),
                 () -> gamePanel.triggerGameOver()
         );
+
+        // Set the current gameState
+        this.gameState = gameState;
     }
 
     // ---------------------- Utility Methods -------------------------

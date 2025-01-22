@@ -9,6 +9,8 @@ public class GameTimer implements Serializable {
     private int timeRemaining; // in seconds
     private Timer timer;
     private boolean isPaused;
+    private Runnable onTimeUpdate;
+    private Runnable onTimeEnd;
 
     public GameTimer(int initialTime) {
         this.timeRemaining = initialTime;
@@ -16,6 +18,9 @@ public class GameTimer implements Serializable {
     }
 
     public void start(Runnable onTimeUpdate, Runnable onTimeEnd) {
+        this.onTimeUpdate = onTimeUpdate;
+        this.onTimeEnd = onTimeEnd;
+
         if (timer != null) {
             timer.cancel();
         }
@@ -25,13 +30,20 @@ public class GameTimer implements Serializable {
             @Override
             public void run() {
                 if (!isPaused) {
-                    timeRemaining--;
-                    System.out.println("Timer tick: " + timeRemaining);  // Add this line
-                    onTimeUpdate.run();
+                    if (timeRemaining > 0) {
+                        timeRemaining--;
+                        System.out.println("Timer tick: " + timeRemaining);
+
+                        if (onTimeUpdate != null) {
+                            onTimeUpdate.run();
+                        }
+                    }
 
                     if (timeRemaining <= 0) {
-                        timer.cancel();
-                        onTimeEnd.run();
+                        stop();
+                        if (onTimeEnd != null) {
+                            onTimeEnd.run();
+                        }
                     }
                 }
             }
@@ -44,15 +56,18 @@ public class GameTimer implements Serializable {
 
     public void pause() {
         isPaused = true;
+        System.out.println("Timer paused at: " + timeRemaining);
     }
 
     public void resume() {
         isPaused = false;
+        System.out.println("Timer resumed at: " + timeRemaining);
     }
 
     public void stop() {
         if (timer != null) {
             timer.cancel();
+            timer = null;
         }
     }
 
@@ -62,5 +77,9 @@ public class GameTimer implements Serializable {
 
     public void addTime(int seconds) {
         timeRemaining += seconds;
+    }
+
+    public boolean isPaused() {
+        return isPaused;
     }
 }

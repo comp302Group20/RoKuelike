@@ -133,11 +133,9 @@ public class GamePanel extends JPanel {
         this.monsters = new ArrayList<>();
 
         if (loadedHero != null) {
-            System.out.println("GamePanel: Using loaded hero at position: x=" + loadedHero.getX() +
-                    ", y=" + loadedHero.getY());
             this.hero = loadedHero;
-            // Ensure position is set
-            this.hero.setPosition(loadedHero.getX(), loadedHero.getY());
+            System.out.println("GamePanel: Using loaded hero at position: " +
+                    loadedHero.getX() + "," + loadedHero.getY());
         } else {
             System.out.println("GamePanel: Creating new hero with random position");
             int tries = 0;
@@ -835,41 +833,49 @@ public class GamePanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        if (heroDied && diedHeroImage != null) {
+        if (heroDied) {
+            // Set background to black
+            setBackground(Color.BLACK);
             hideButtonsIfGameOver();
-            g.drawImage(diedHeroImage, hero.getX(), hero.getY(), cellSize, cellSize, null);
+
+            // Draw death animation
+            if (diedHeroImage != null) {
+                int x = hero.getX();
+                int y = hero.getY();
+                g.drawImage(diedHeroImage, x, y, cellSize, cellSize, null);
+            }
             return;
         }
-        // If gameOver, show image and stop drawing
+
         if (gameOver && gameOverImage != null) {
+            // Set background to black
+            setBackground(Color.BLACK);
             hideButtonsIfGameOver();
-            int imgWidth = 900, imgHeight = 900;
+
+            // Center the game over image
+            int imgWidth = 900;
+            int imgHeight = 900;
             int x = (getWidth() - imgWidth) / 2;
             int y = (getHeight() - imgHeight) / 2;
             g.drawImage(gameOverImage, x, y, imgWidth, imgHeight, null);
             return;
         }
 
-        // If heroDied, show diedHeroImage
-        if (heroDied && diedHeroImage != null) {
-            hideButtonsIfGameOver();
-            g.drawImage(diedHeroImage, hero.getX(), hero.getY(), cellSize, cellSize, null);
-            return;
-        }
-
+        // Draw the game board
         drawBoard(g);
         drawGridLines(g);
         drawPlacedObjects(g);
 
+        // Draw hall name
         String hallName = gameController.getHall().getName();
         g.setColor(Color.WHITE);
-        g.setFont(Utils.GameFonts.pixelFont.deriveFont(32f));  // Add this line
+        g.setFont(Utils.GameFonts.pixelFont.deriveFont(32f));
         FontMetrics fm = g.getFontMetrics();
         int nameWidth = fm.stringWidth(hallName);
         int nameX = (getWidth() - nameWidth) / 2;
         g.drawString(hallName, nameX, 30);
 
-        // Draw hero
+        // Draw hero and monsters
         hero.draw(g);
 
         // Draw monsters (some may be behind objects)
@@ -916,11 +922,10 @@ public class GamePanel extends JPanel {
             System.out.println("Cloak of Protection wore off.");
         }
 
+        // Draw throwing animation
         if (throwCurrentPos != null && luringGemImage != null) {
-            // Draw throwing animation
             Graphics2D g2d = (Graphics2D) g.create();
             int imageSize = cellSize/2; // Half cell size for the throwing animation
-            // Draw the gem at the current position, adjusted for bounce height
             g2d.drawImage(luringGemImage,
                     throwCurrentPos.x - imageSize/2,
                     throwCurrentPos.y - imageSize/2 - (int)throwHeight,
@@ -928,75 +933,65 @@ public class GamePanel extends JPanel {
             g2d.dispose();
         }
 
+        // Draw lure position
         if (luringGemActive && lurePosition != null) {
             Graphics2D g2d = (Graphics2D) g.create();
-            // Draw smaller red X
             g2d.setColor(Color.RED);
             g2d.setStroke(new BasicStroke(2));
-            int xSize = cellSize/2; // Half size X
-            int xOffset = cellSize/4; // Center the X in the cell
-            // Draw first diagonal
+            int xSize = cellSize/2;
+            int xOffset = cellSize/4;
             g2d.drawLine(lurePosition.x + xOffset, lurePosition.y + xOffset,
                     lurePosition.x + xOffset + xSize, lurePosition.y + xOffset + xSize);
-            // Draw second diagonal
             g2d.drawLine(lurePosition.x + xOffset + xSize, lurePosition.y + xOffset,
                     lurePosition.x + xOffset, lurePosition.y + xOffset + xSize);
             g2d.dispose();
         }
 
+        // Draw inventory and game information
         if (hero != null && hero.getInventory() != null) {
-            // Calculate position based on game grid size
             int gameWidth = GRID_COLS * cellSize;
-            int inventoryX = gameWidth + 20;  // 20 pixels from right edge of board
-
-            // Calculate inventory width
+            int inventoryX = gameWidth + 20;
             int totalWidth = (Inventory.SLOTS_X * Inventory.SLOT_SIZE) +
                     ((Inventory.SLOTS_X - 1) * Inventory.SPACING);
 
-            // Position inventory lower on the board
             int boardHeight = GRID_ROWS * cellSize;
-            int inventoryHeight = 300;  // Approximate height of inventory display
+            int inventoryHeight = 300;
             int inventoryY = (boardHeight * 2/3) - (inventoryHeight / 2) - 60;
 
             // Draw inventory
             hero.getInventory().draw(g, inventoryX, inventoryY);
 
-            // Draw time display below inventory (moved up)
+            // Draw time display
             g.setColor(Color.WHITE);
             g.setFont(Utils.GameFonts.pixelFont.deriveFont(24f));
 
-            // Center "Time:" text
             FontMetrics timeFm = g.getFontMetrics();
             int timeTextWidth = timeFm.stringWidth("Time:");
             int timeX = inventoryX + ((totalWidth - timeTextWidth) / 2);
-            int timeY = inventoryY + inventoryHeight - 60;  // Moved up by changing this value
+            int timeY = inventoryY + inventoryHeight - 60;
             g.drawString("Time:", timeX, timeY);
 
-            // Center the seconds display
             String timeStr = String.valueOf(timeRemaining) + "s";
             int timeValueWidth = timeFm.stringWidth(timeStr);
             int timeValueX = inventoryX + ((totalWidth - timeValueWidth) / 2);
             g.drawString(timeStr, timeValueX, timeY + 30);
 
-            // Draw Wizard Strategy below time
+            // Draw Wizard Strategy
             if (monsters != null) {
                 for (Monster m : monsters) {
                     if (m instanceof WizardMonster) {
                         g.setFont(Utils.GameFonts.pixelFont.deriveFont(20f));
                         String strategy = ((WizardMonster)m).getCurrentBehaviorName();
 
-                        // Draw "Wizard Strategy:" text
                         String label = "Wizard Strategy:";
                         int labelWidth = timeFm.stringWidth(label);
                         int stratX = inventoryX + ((totalWidth - labelWidth) / 2) + 20;
-                        int stratY = timeY + 100;  // Position below time display
+                        int stratY = timeY + 100;
                         g.drawString(label, stratX, stratY);
 
-                        // Draw the strategy value on the next line
                         int valueWidth = timeFm.stringWidth(strategy);
                         int valueX = inventoryX + ((totalWidth - valueWidth) / 2);
-                        g.drawString(strategy, valueX, stratY + 25);  // 25 pixels below the label
-
+                        g.drawString(strategy, valueX, stratY + 25);
                         break;
                     }
                 }
@@ -1100,35 +1095,48 @@ public class GamePanel extends JPanel {
     private void checkHealthCondition() {
         if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
             heroDied = true;
-            gameOver = true;
-            loadDiedHeroImage(); // Load diedHeroImage based on current direction
-            isPaused = true; // Disable movement
-            System.out.println("Hero died");
 
-            // Cancel existing timers to stop monster actions
-            if (monsterSpawnerTimer != null) {
-                monsterSpawnerTimer.cancel();
-            }
-            if (monsterMovementTimer != null) {
-                monsterMovementTimer.cancel();
+            // Hide save button immediately
+            if (saveButton != null) {
+                saveButton.setVisible(false);
             }
 
-            // Start a 2-second timer to transition to game over
+            // Set background to black
+            setBackground(Color.BLACK);
+
+            // Cancel existing timers
+            if (monsterSpawnerTimer != null) monsterSpawnerTimer.cancel();
+            if (monsterMovementTimer != null) monsterMovementTimer.cancel();
+            if (enchantmentSpawnTimer != null) enchantmentSpawnTimer.cancel();
+
+            // Show death animation for 2 seconds
             gameOverTimer = new Timer(true);
             gameOverTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     gameOver = true;
-                    heroDied = false; // Reset heroDied flag
+                    heroDied = false;
+
+                    // Schedule return to main menu after 3 seconds
+                    redirectTimer = new Timer(true);
+                    redirectTimer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            SwingUtilities.invokeLater(() -> {
+                                JFrame mm = new RokueLikeMainMenu();
+                                mm.setVisible(true);
+                                SwingUtilities.getWindowAncestor(GamePanel.this).dispose();
+                            });
+                        }
+                    }, 3000); // 3 seconds delay
+
                     SwingUtilities.invokeLater(() -> repaint());
                 }
-            }, 2000); // 2000 milliseconds = 2 seconds
+            }, 2000); // 2 seconds for death animation
 
-            // Repaint to show the died hero image immediately
             SwingUtilities.invokeLater(() -> repaint());
         }
     }
-
 
     /**
      * Draws the floor/wall tiles.
@@ -1475,7 +1483,7 @@ public class GamePanel extends JPanel {
      */
     private void createPauseButton() {
         pauseButton = new JButton();
-        int buttonX = GRID_COLS * cellSize + 20;  // 20 pixels from right edge of board
+        int buttonX = GRID_COLS * cellSize + 20;
         pauseButton.setBounds(buttonX, 80, 64, 64);
         updatePauseButtonIcon(pauseButton);
         pauseButton.setBorderPainted(false);
@@ -1485,11 +1493,26 @@ public class GamePanel extends JPanel {
             if (!gameOver && !heroDied) {
                 isPaused = !isPaused;
                 updatePauseButtonIcon(pauseButton);
+
                 if (isPaused) {
-                    gameController.pauseGame();
+                    // Pause timers
+                    if (monsterSpawnerTimer != null) monsterSpawnerTimer.cancel();
+                    if (monsterMovementTimer != null) monsterMovementTimer.cancel();
+                    if (enchantmentSpawnTimer != null) enchantmentSpawnTimer.cancel();
+                    // Pause game timer
+                    if (gameController != null && gameController.getGameTimer() != null) {
+                        gameController.getGameTimer().pause();
+                    }
                 } else {
-                    gameController.resumeGame();
-                    // Force focus back to the GamePanel so it can receive key events again
+                    // Resume timers
+                    startMonsterSpawner();
+                    startMonsterMovement();
+                    startEnchantmentSpawner();
+                    // Resume game timer
+                    if (gameController != null && gameController.getGameTimer() != null) {
+                        gameController.getGameTimer().resume();
+                    }
+                    // Force focus back to the GamePanel
                     GamePanel.this.requestFocusInWindow();
                 }
             }
@@ -1566,6 +1589,9 @@ public class GamePanel extends JPanel {
         }
         if (exitButton != null) {
             exitButton.setVisible(false);
+        }
+        if (saveButton != null) {
+            saveButton.setVisible(false);
         }
     }
 
