@@ -60,7 +60,7 @@ public class RokueLikeMainMenu extends JFrame {
         });
         exitButton.addActionListener(e -> System.exit(0));
 
-        loadButton = createButton(AssetPaths.NEWGAME_BUTTON); // or any icon you prefer
+        loadButton = createButton(AssetPaths.LOADGAME_BUTTON); // or any icon you prefer
         backgroundPanel.add(loadButton);
         loadButton.addActionListener(e -> {
             LoadGameDialog loadDialog = new LoadGameDialog(RokueLikeMainMenu.this);

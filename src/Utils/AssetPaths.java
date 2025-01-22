@@ -21,7 +21,7 @@ public class AssetPaths {
     public static final String HELP_BUTTON = getPath("/helpbutton.png");
     public static final String EXIT_BUTTON = getPath("/exitbutton.png");
     public static final String PAUSED_INDICATOR = getPath("/paused2.png");
-
+    public static final String LOADGAME_BUTTON = getPath("/loadgamebutton.png");
 
     // Sprite coordinates
     public static final int[] FLOOR_TILE = {32, 48, 16, 16};
