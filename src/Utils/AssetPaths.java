@@ -28,13 +28,13 @@ public class AssetPaths {
     public static final int[] WALL = {48, 48, 16, 16};
     public static final int[] DOOR = {64, 48, 16, 16};
     public static final int[] CHEST = {80, 48, 16, 16};
-    public static final int[] TORCH = {96, 48, 16, 16};
-    public static final int[] PILLAR = {112, 48, 16, 32};  // Double height
-    public static final int[] LADDER = {128, 48, 16, 16};
+    public static final int[] TORCH = {112, 160, 16, 16};
+    public static final int[] PILLAR = {112, 160, 16, 16};  // Double height
+    public static final int[] LADDER = {48, 0, 16, 16};
     public static final int[] BOX = {80, 112, 16, 16};
     public static final int[] DOUBLE_BOX = {96, 96, 16, 32}; // Double height
-    public static final int[] SKULL = {176, 48, 16, 16};
-    public static final int[] POTION = {192, 48, 16, 16};
+    public static final int[] SKULL = {16, 48, 16, 16};
+    public static final int[] POTION = {240, 176, 16, 16};
 
     public static final String RUNE = getPath("/keyRune.png");
     public static final String HEART = getPath("/heart.png");
