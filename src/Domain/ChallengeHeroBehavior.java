@@ -6,10 +6,23 @@ import java.util.TimerTask;
 
 public class ChallengeHeroBehavior implements WizardBehavior {
     private Timer runeTeleportTimer;
-    private boolean started = false; // so we only schedule once
+    private boolean started = false;
 
     @Override
     public void performAction(WizardMonster wizard, Hero hero, GamePanel gamePanel) {
+        // Cancel existing timer if we have one
+        if (runeTeleportTimer != null) {
+            runeTeleportTimer.cancel();
+            runeTeleportTimer = null;
+        }
+
+        // Reset started flag when ratio is no longer appropriate
+        double ratio = gamePanel.getTimeRatio();
+        if (ratio <= 0.7) {
+            started = false;
+            return;
+        }
+
         // If we've already started, do nothing (prevents multiple timers)
         if (started) return;
         started = true;
@@ -18,12 +31,13 @@ public class ChallengeHeroBehavior implements WizardBehavior {
         runeTeleportTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                double ratio = gamePanel.getTimeRatio();
-                if (ratio <= 0.7) {
+                double currentRatio = gamePanel.getTimeRatio();
+                if (currentRatio <= 0.7) {
                     // No longer above 70% => stop and remove wizard
                     runeTeleportTimer.cancel();
                     gamePanel.removeMonster(wizard);
-                    System.out.println("No more challenging. Time ratio is now " + ratio);
+                    started = false;  // Reset the started flag
+                    System.out.println("No more challenging. Time ratio is now " + currentRatio);
                 } else {
                     // Teleport rune
                     gamePanel.teleportRuneRandomly();

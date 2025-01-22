@@ -26,6 +26,7 @@ public class GameTimer implements Serializable {
             public void run() {
                 if (!isPaused) {
                     timeRemaining--;
+                    System.out.println("Timer tick: " + timeRemaining);  // Add this line
                     onTimeUpdate.run();
 
                     if (timeRemaining <= 0) {

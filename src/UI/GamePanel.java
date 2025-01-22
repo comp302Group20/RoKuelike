@@ -1533,12 +1533,19 @@ public class GamePanel extends JPanel {
     }
 
     public double getTimeRatio() {
-        // gameController holds both 'timeRemaining' and 'startingTime'
         int remaining = gameController.getTimeRemaining();
-        int initial = gameController.getStartingTime();
-        // Avoid division by zero if initial = 0
+        int initial = gameController.getStartingTime();  // This should be 45
+
+        // Add debug prints
+        System.out.println("Time values - Remaining: " + remaining + ", Initial: " + initial +
+                ", GameTimer remaining: " + gameController.getGameTimer().getTimeRemaining());
+
         if (initial == 0) return 0.0;
-        return (double) remaining / (double) initial;
+
+        // Use the GameTimer's actual remaining time instead
+        double ratio = (double) gameController.getGameTimer().getTimeRemaining() / initial;
+        System.out.println("Calculated ratio: " + ratio);
+        return ratio;
     }
 
     public void removeMonster(Monster m) {

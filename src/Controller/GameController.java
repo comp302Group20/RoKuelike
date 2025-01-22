@@ -184,10 +184,13 @@ public class GameController {
         // Create new GamePanel with the hero
         gamePanel = new GamePanel(grid, placedObjects, this);
 
-        // Initialize domain-based timer
         gameTimer = new GameTimer(startingTime);
         gameTimer.start(
-                () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),
+                () -> {
+                    // Update both GamePanel and Controller's time
+                    this.timeRemaining = gameTimer.getTimeRemaining();  // Add this line
+                    gamePanel.updateTime(gameTimer.getTimeRemaining());
+                },
                 () -> gamePanel.triggerGameOver()
         );
 

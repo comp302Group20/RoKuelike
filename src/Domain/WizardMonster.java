@@ -38,20 +38,24 @@ public class WizardMonster extends Monster implements Serializable {
 
         // Check the ratio each update
         double ratio = gamePanel.getTimeRatio();
+        System.out.println("Current time ratio: " + ratio); // Debug print
 
         // Switch behaviors only if necessary
         if (ratio > 0.7 && currentBehavior != challengeBehavior) {
-            // Switch to ChallengeHeroBehavior (same instance)
+            System.out.println("Switching to Challenge behavior"); // Debug print
             currentBehavior = challengeBehavior;
         }
         else if (ratio < 0.3 && currentBehavior != helpBehavior) {
-            // Switch to HelpHeroBehavior
+            System.out.println("Switching to Help behavior"); // Debug print
             currentBehavior = helpBehavior;
         }
         else if (ratio >= 0.3 && ratio <= 0.7 && currentBehavior != indecisiveBehavior) {
-            // Switch to IndecisiveBehavior
+            System.out.println("Switching to Indecisive behavior"); // Debug print
             currentBehavior = indecisiveBehavior;
         }
+
+        // Print current behavior
+        System.out.println("Current behavior: " + getCurrentBehaviorName());
 
         // Perform the chosen behavior
         if (currentBehavior != null) {
