@@ -37,7 +37,7 @@ public class GameController {
 
     private JFrame playModeFrame;
 
-    private static final int WINDOW_WIDTH = 1000;
+    private static final int WINDOW_WIDTH = 1100;
     private static final int WINDOW_HEIGHT = 900;
     private static final int TIME_PER_OBJECT = 5; // seconds
     private static Inventory persistentInventory = null;
@@ -163,7 +163,7 @@ public class GameController {
 
         playModeFrame = new JFrame("Play Mode - " + getHallDescriptor(currentHallNumber));
         playModeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        playModeFrame.setSize(1100, 900);
+        playModeFrame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         playModeFrame.setLocationRelativeTo(null);
 
         // Reset hero

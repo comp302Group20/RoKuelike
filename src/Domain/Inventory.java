@@ -23,17 +23,19 @@ public class Inventory {
     }
 
     public void draw(Graphics g, int startX, int startY) {
-        // Draw inventory background
         Graphics2D g2d = (Graphics2D) g;
-        g2d.setColor(new Color(0, 0, 0, 180));
+        g2d.setColor(new Color(255, 255, 224, 180));  // Light yellow background
         int totalWidth = (SLOTS_X * SLOT_SIZE) + ((SLOTS_X - 1) * SPACING);
         int totalHeight = (SLOTS_Y * SLOT_SIZE) + ((SLOTS_Y - 1) * SPACING);
         g2d.fillRect(startX - 10, startY - 10, totalWidth + 20, totalHeight + 20);
 
-        // Draw inventory title
+        // Draw inventory title with pixel font
+        g2d.setFont(Utils.GameFonts.pixelFont.deriveFont(20f));  // Add this line
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 20));
-        g2d.drawString("Inventory", startX, startY - 15);
+        FontMetrics fm = g2d.getFontMetrics();
+        int textWidth = fm.stringWidth("Inventory");
+        int textX = startX + (totalWidth - textWidth) / 2;
+        g2d.drawString("Inventory", textX, startY - 15);
 
         // Draw slots and items
         for (int row = 0; row < SLOTS_Y; row++) {
@@ -41,7 +43,7 @@ public class Inventory {
                 int x = startX + col * (SLOT_SIZE + SPACING);
                 int y = startY + row * (SLOT_SIZE + SPACING);
 
-                // Draw slot background
+                // Draw slot background (keeping original gray color)
                 g2d.setColor(new Color(70, 70, 70, 200));
                 g2d.fillRect(x, y, SLOT_SIZE, SLOT_SIZE);
 

@@ -36,14 +36,18 @@ public class BuildModeController {
         frame.add(buildPanel, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel();
-        bottomPanel.setBackground(new Color(240, 240, 240));
+        // Change the background color to light blue
+        bottomPanel.setBackground(new Color(255, 255, 255));
         bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
 
         JButton finishBuildBtn = new JButton("Finish Building");
-        finishBuildBtn.setFont(new Font("Arial", Font.BOLD, 16));
+        finishBuildBtn.setFont(Utils.GameFonts.pixelFont.deriveFont(16f));
         finishBuildBtn.setPreferredSize(new Dimension(150, 40));
-        finishBuildBtn.setBackground(new Color(50, 205, 50));
+        finishBuildBtn.setBackground(new Color(34, 139, 34));  // Forest Green
         finishBuildBtn.setForeground(Color.WHITE);
+        finishBuildBtn.setFocusPainted(false);
+        finishBuildBtn.setBorderPainted(false);
+        finishBuildBtn.setOpaque(true);
 
         finishBuildBtn.addActionListener(e -> {
             int numberOfObjects = buildPanel.getNumberOfPlacedObjects();
@@ -53,7 +57,7 @@ public class BuildModeController {
                 parentController.onBuildModeFinished(
                         buildPanel.getGrid(),
                         buildPanel.getPlacedObjectsGrid(),
-                        previousInventory  // Add this parameter
+                        previousInventory
                 );
 
                 frame.setVisible(false);

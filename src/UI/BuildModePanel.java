@@ -45,10 +45,15 @@ public class BuildModePanel extends JPanel {
         currentHall = hall;
         this.gameController = controller;
         this.parentFrame = frame;
+
         grid = new CellType[GRID_ROWS][GRID_COLS];
         placedObjectsGrid = new PlacedObject[GRID_ROWS][GRID_COLS];
         setPreferredSize(new Dimension(1000, 900));
         setLayout(null);
+
+        // Add this line to set the background color
+        setBackground(new Color(255, 255, 255));
+
         initializeGrid();
         initializeImages();
         initializeUI();
@@ -186,10 +191,11 @@ public class BuildModePanel extends JPanel {
 
     private void initializeUI() {
         objectColumnPanel = new JPanel();
-        objectColumnPanel.setBounds(832 + 10, 0, 150, 900);  // Adjusted width and position
+        objectColumnPanel.setBounds(832 + 10, 0, 150, 900);
         objectColumnPanel.setLayout(new BoxLayout(objectColumnPanel, BoxLayout.Y_AXIS));
         objectColumnPanel.setBorder(BorderFactory.createTitledBorder("Available Objects"));
-        objectColumnPanel.setBackground(new Color(240, 240, 240));
+        // Change this line to match the new background color
+        objectColumnPanel.setBackground(new Color(255, 165, 0));
         add(objectColumnPanel);
     }
 
@@ -347,7 +353,7 @@ public class BuildModePanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+        super.paintComponent(g);  // This line is important for the background color
         drawBoard(g);
         drawGridLines(g);
         drawPlacedObjects(g);

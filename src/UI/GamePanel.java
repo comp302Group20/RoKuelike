@@ -28,6 +28,7 @@ import Domain.GameState;
 import Domain.Enchantment;
 import Domain.EnchantmentType;
 import Domain.Inventory;
+import Utils.GameFonts;
 
 /**
  * The main panel for playing the game. Handles rendering, user input,
@@ -114,11 +115,17 @@ public class GamePanel extends JPanel {
 
     private GameController gameController;
 
+    private Font gameFont;
+
     public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller, Hero loadedHero) {
+        // Add these lines near the start of the constructor
+        setPreferredSize(new Dimension(GRID_COLS * cellSize, GRID_ROWS * cellSize));
+        setBorder(null);  // Remove any border
+        setLayout(null);
         this.grid = g;
         this.placedObjects = p;
         this.gameController = controller;
-        setBackground(Color.BLACK);
+        setBackground(new Color(62, 41, 52));
 
         this.random = new Random();
         this.monsters = new ArrayList<>();
@@ -229,6 +236,19 @@ public class GamePanel extends JPanel {
     // Add the overloaded constructor
     public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
         this(g, p, controller, null);
+    }
+
+    private void loadGameFont() {
+        try {
+            // Load a custom pixel/game font - you'll need to add this to your resources
+            gameFont = Font.createFont(Font.TRUETYPE_FONT,
+                    getClass().getResourceAsStream("/fonts/pixel.ttf")).deriveFont(24f);
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            ge.registerFont(gameFont);
+        } catch (Exception e) {
+            // Fallback to a similar looking font
+            gameFont = new Font("Monospaced", Font.BOLD, 24);
+        }
     }
 
     private void loadLuringGemImage() {
@@ -833,14 +853,13 @@ public class GamePanel extends JPanel {
         drawGridLines(g);
         drawPlacedObjects(g);
 
-        // Draw hall name at the top
         String hallName = gameController.getHall().getName();
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 32));
+        g.setFont(Utils.GameFonts.pixelFont.deriveFont(32f));  // Add this line
         FontMetrics fm = g.getFontMetrics();
         int nameWidth = fm.stringWidth(hallName);
-        int nameX = (GRID_COLS * cellSize - nameWidth) / 2; // Center above the board
-        g.drawString(hallName, nameX, 30); // 30 pixels from top
+        int nameX = (getWidth() - nameWidth) / 2;
+        g.drawString(hallName, nameX, 30);
 
         // Draw hero
         hero.draw(g);
@@ -919,42 +938,59 @@ public class GamePanel extends JPanel {
 
         if (hero != null && hero.getInventory() != null) {
             // Calculate position based on game grid size
-            int gameWidth = GRID_COLS * cellSize;  // 832 pixels
-            int inventoryX = gameWidth + 10;       // Just 10 pixels from game border
-            int inventoryY = (getHeight() - 300) / 2;  // Vertically centered
+            int gameWidth = GRID_COLS * cellSize;
+            int inventoryX = gameWidth + 20;  // 20 pixels from right edge of board
+
+            // Calculate inventory width
+            int totalWidth = (Inventory.SLOTS_X * Inventory.SLOT_SIZE) +
+                    ((Inventory.SLOTS_X - 1) * Inventory.SPACING);
+
+            // Position inventory lower on the board
+            int boardHeight = GRID_ROWS * cellSize;
+            int inventoryHeight = 300;  // Approximate height of inventory display
+            int inventoryY = (boardHeight * 2/3) - (inventoryHeight / 2) - 60;
 
             // Draw inventory
             hero.getInventory().draw(g, inventoryX, inventoryY);
 
-            // Draw time display below inventory
+            // Draw time display below inventory (moved up)
             g.setColor(Color.WHITE);
-            g.setFont(new Font("Arial", Font.BOLD, 24));
-            int timeX = inventoryX;
-            int timeY = inventoryY + 250;
+            g.setFont(Utils.GameFonts.pixelFont.deriveFont(24f));
+
+            // Center "Time:" text
+            FontMetrics timeFm = g.getFontMetrics();
+            int timeTextWidth = timeFm.stringWidth("Time:");
+            int timeX = inventoryX + ((totalWidth - timeTextWidth) / 2);
+            int timeY = inventoryY + inventoryHeight - 60;  // Moved up by changing this value
             g.drawString("Time:", timeX, timeY);
-            g.drawString(String.valueOf(timeRemaining) + "s", timeX, timeY + 30);
-        }
 
-        // Add this after drawing inventory and time
-        if (monsters != null) {
-            for (Monster m : monsters) {
-                if (m instanceof WizardMonster) {
-                    g.setColor(Color.WHITE);
-                    g.setFont(new Font("Arial", Font.BOLD, 20));
-                    String strategy = ((WizardMonster)m).getCurrentBehaviorName();
+            // Center the seconds display
+            String timeStr = String.valueOf(timeRemaining) + "s";
+            int timeValueWidth = timeFm.stringWidth(timeStr);
+            int timeValueX = inventoryX + ((totalWidth - timeValueWidth) / 2);
+            g.drawString(timeStr, timeValueX, timeY + 30);
 
-                    // Calculate position relative to game board
-                    int boardWidth = GRID_COLS * cellSize;
-                    int boardHeight = GRID_ROWS * cellSize;
+            // Draw Wizard Strategy below time
+            if (monsters != null) {
+                for (Monster m : monsters) {
+                    if (m instanceof WizardMonster) {
+                        g.setFont(Utils.GameFonts.pixelFont.deriveFont(20f));
+                        String strategy = ((WizardMonster)m).getCurrentBehaviorName();
 
-                    FontMetrics strategyFm = g.getFontMetrics();
-                    int textWidth = strategyFm.stringWidth("Wizard Strategy: " + strategy);
+                        // Draw "Wizard Strategy:" text
+                        String label = "Wizard Strategy:";
+                        int labelWidth = timeFm.stringWidth(label);
+                        int stratX = inventoryX + ((totalWidth - labelWidth) / 2) + 20;
+                        int stratY = timeY + 100;  // Position below time display
+                        g.drawString(label, stratX, stratY);
 
-                    int stratX = boardWidth - textWidth - 20;  // 20 pixels padding from right
-                    int stratY = boardHeight - 20;  // 20 pixels padding from bottom
+                        // Draw the strategy value on the next line
+                        int valueWidth = timeFm.stringWidth(strategy);
+                        int valueX = inventoryX + ((totalWidth - valueWidth) / 2);
+                        g.drawString(strategy, valueX, stratY + 25);  // 25 pixels below the label
 
-                    g.drawString("Wizard Strategy: " + strategy, stratX, stratY);
-                    break;
+                        break;
+                    }
                 }
             }
         }
@@ -1038,20 +1074,15 @@ public class GamePanel extends JPanel {
      */
     private void drawHearts(Graphics g) {
         if (heartImage != null) {
-            int heartWidth = 40;
-            int heartHeight = 40;
-            int bottomMargin = 20; // Distance from bottom of board
+            int heartWidth = 60;
+            int heartHeight = 60;
+            int bottomMargin = 0;  // Increased from 40 to 60
             int startY = (GRID_ROWS * cellSize) - heartHeight - bottomMargin;
 
             for (int i = 0; i < hero.getHealth(); i++) {
-                int xPos = 10 + i * (heartWidth + 5);
+                int xPos = 10 + i * (heartWidth + 10);
                 g.drawImage(heartImage, xPos, startY, heartWidth, heartHeight, null);
             }
-        } else {
-            // Fallback text if heart image fails to load
-            g.setColor(Color.WHITE);
-            g.setFont(new Font("Arial", Font.BOLD, 20));
-            g.drawString("Health: " + hero.getHealth(), 10, (GRID_ROWS * cellSize) - 20);
         }
     }
 
@@ -1436,7 +1467,8 @@ public class GamePanel extends JPanel {
      */
     private void createPauseButton() {
         pauseButton = new JButton();
-        pauseButton.setBounds(832 + 10, 50, 64, 64);  // 10 pixels from game area
+        int buttonX = GRID_COLS * cellSize + 20;  // 20 pixels from right edge of board
+        pauseButton.setBounds(buttonX, 80, 64, 64);
         updatePauseButtonIcon(pauseButton);
         pauseButton.setBorderPainted(false);
         pauseButton.setFocusPainted(false);
@@ -1470,7 +1502,8 @@ public class GamePanel extends JPanel {
      */
     private void createExitButton() {
         exitButton = new JButton();
-        exitButton.setBounds(832 + 10, 120, 64, 64);  // 10 pixels from game area
+        int buttonX = GRID_COLS * cellSize + 20;
+        exitButton.setBounds(buttonX, 140, 64, 64);
         exitButton.setBorderPainted(false);
         exitButton.setFocusPainted(false);
         exitButton.setContentAreaFilled(false);
@@ -1488,11 +1521,22 @@ public class GamePanel extends JPanel {
 
     private void createSaveButton() {
         saveButton = new JButton("Save");
-        saveButton.setBounds(832 + 10, 190, 64, 64);  // 10 pixels from game area
-        // When clicked, we'll delegate to gameController.saveGame()
+        int buttonX = GRID_COLS * cellSize + 120;  // Position from right edge of board
+        int buttonY = 80;  // Vertical position
+        saveButton.setBounds(buttonX, buttonY, 100, 100);
+
+        // Set font size bigger
+        saveButton.setFont(Utils.GameFonts.pixelFont.deriveFont(20f));  // Increased from 16f to 24f
+
+        // Set light blue background
+        saveButton.setBackground(new Color(65, 105, 225));
+        saveButton.setForeground(Color.WHITE);  // White text
+        saveButton.setFocusPainted(false);
+        saveButton.setBorderPainted(false);
+        saveButton.setOpaque(true);
+
         saveButton.addActionListener(e -> {
             System.out.println("saveButton clicked!");
-            // Just call the method in GameController:
             gameController.saveGame();
         });
         add(saveButton);
