@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.net.URL;
 
 /**
- * Represents a single enchantment that appears on the board.
+ * Represents an in-game enchantment that can be collected by the hero or stored on the floor.
  */
 public class Enchantment implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -20,12 +20,27 @@ public class Enchantment implements Serializable {
     private transient BufferedImage image;
     private long spawnTime;
 
-    // Original constructor for new enchantments
+    /**
+     * Constructs a new Enchantment with its position, size, and type. Also records the spawn time.
+     * @param x the x-coordinate
+     * @param y the y-coordinate
+     * @param width the width
+     * @param height the height
+     * @param type the EnchantmentType
+     */
     public Enchantment(int x, int y, int width, int height, EnchantmentType type) {
         this(x, y, width, height, type, System.currentTimeMillis());
     }
 
-    // New constructor for loading saved enchantments
+    /**
+     * Constructs a new Enchantment, providing a specific spawnTime (used when loading from saved data).
+     * @param x the x-coordinate
+     * @param y the y-coordinate
+     * @param width the width
+     * @param height the height
+     * @param type the EnchantmentType
+     * @param spawnTime the time the enchantment was created
+     */
     public Enchantment(int x, int y, int width, int height, EnchantmentType type, long spawnTime) {
         this.x = x;
         this.y = y;
@@ -36,7 +51,10 @@ public class Enchantment implements Serializable {
         loadImage();
     }
 
-    // Method to convert enchantment to state for saving
+    /**
+     * Converts this enchantment into a serializable EnchantmentState for saving.
+     * @return an EnchantmentState object containing this enchantment's data
+     */
     public GameState.EnchantmentState toEnchantmentState() {
         return new GameState.EnchantmentState(
                 type.name(),
@@ -48,8 +66,10 @@ public class Enchantment implements Serializable {
         );
     }
 
+    /**
+     * Loads the appropriate image resource for this enchantment type.
+     */
     private void loadImage() {
-        // Load the correct image based on the enchantment type
         String path;
         switch (type) {
             case REVEAL:       path = AssetPaths.REVEAL_ENCH;       break;
@@ -71,41 +91,70 @@ public class Enchantment implements Serializable {
     }
 
     /**
-     * Checks if this enchantment has expired (older than 6 seconds).
-     * @return true if older than 6 seconds, false otherwise.
+     * Checks if this enchantment has existed for more than 6 seconds.
+     * @return true if expired, false otherwise
      */
     public boolean isExpired() {
-        return (System.currentTimeMillis() - spawnTime) > 6000; // 6 seconds
+        return (System.currentTimeMillis() - spawnTime) > 6000;
     }
 
     /**
-     * Returns the time at which the enchantment was spawned.
+     * Provides the spawn time for this enchantment.
+     * @return the time the enchantment was created in milliseconds
      */
     public long getSpawnTime() {
         return spawnTime;
     }
 
+    /**
+     * Draws the enchantment at its specified position and size.
+     * @param g the Graphics context
+     */
     public void draw(Graphics g) {
         if (image != null) {
             g.drawImage(image, x, y, width, height, null);
         } else {
-            // Fallback if image not found
             g.setColor(Color.MAGENTA);
             g.fillRect(x, y, width, height);
         }
     }
 
-    // New getter for the image, so inventory can draw it
+    /**
+     * Retrieves the image for this enchantment.
+     * @return the BufferedImage representing the enchantment
+     */
     public BufferedImage getImage() {
         return image;
     }
 
-    // Getters for bounding box checks
+    /**
+     * Returns the x-coordinate of the enchantment.
+     * @return an integer x-coordinate
+     */
     public int getX() { return x; }
+
+    /**
+     * Returns the y-coordinate of the enchantment.
+     * @return an integer y-coordinate
+     */
     public int getY() { return y; }
+
+    /**
+     * Returns the width of the enchantment.
+     * @return an integer width
+     */
     public int getWidth() { return width; }
+
+    /**
+     * Returns the height of the enchantment.
+     * @return an integer height
+     */
     public int getHeight() { return height; }
 
+    /**
+     * Gets the type of enchantment.
+     * @return the EnchantmentType
+     */
     public EnchantmentType getType() {
         return type;
     }

@@ -7,13 +7,16 @@ import java.util.List;
 
 public class SaveLoadManager {
 
+    /**
+     * Serializes and saves the provided GameState to a file within the "saves" directory.
+     * @param gameState the GameState object to serialize
+     * @param saveFileName the desired name for the save file
+     */
     public static void saveGame(GameState gameState, String saveFileName) {
-        // Ensure "saves" folder exists
         File folder = new File("saves");
         if (!folder.exists()) {
             folder.mkdirs();
         }
-        // Enforce .rkl extension
         if (!saveFileName.endsWith(".rkl")) {
             saveFileName += ".rkl";
         }
@@ -26,9 +29,13 @@ public class SaveLoadManager {
         }
     }
 
+    /**
+     * Loads a GameState from a file with the given name inside the "saves" directory.
+     * @param saveFileName the name of the saved file (without or with ".rkl" extension)
+     * @return the deserialized GameState, or null if an error occurs
+     */
     public static GameState loadGame(String saveFileName) {
         File folder = new File("saves");
-        // Enforce .rkl extension
         if (!saveFileName.endsWith(".rkl")) {
             saveFileName += ".rkl";
         }
@@ -45,13 +52,16 @@ public class SaveLoadManager {
         }
     }
 
+    /**
+     * Retrieves a list of available save files (names without the ".rkl" extension) from the "saves" folder.
+     * @return a list of save file names
+     */
     public static List<String> listSaves() {
         File folder = new File("saves");
         List<String> saves = new ArrayList<>();
         if (folder.exists() && folder.isDirectory()) {
             for (File f : folder.listFiles()) {
                 if (f.isFile() && f.getName().endsWith(".rkl")) {
-                    // e.g. "save3.rkl" -> "save3"
                     saves.add(f.getName().replace(".rkl", ""));
                 }
             }

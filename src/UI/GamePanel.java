@@ -93,6 +93,10 @@ public class GamePanel extends JPanel {
     private static final int MAX_BOUNCE_HEIGHT = 100; // Maximum height of the bounce
     private BufferedImage luringGemImage;
 
+    /**
+     * Updates the time remaining in the game and repaints the panel.
+     * @param timeRemaining The amount of time left in seconds.
+     */
     public void updateTime(int timeRemaining) {
         this.timeRemaining = timeRemaining;
         repaint(); // Redraw the panel to reflect the time change
@@ -119,10 +123,16 @@ public class GamePanel extends JPanel {
 
     private Font gameFont;
 
+    /**
+     * Constructs a new GamePanel using the given grid, placed objects, controller, and optional loaded hero.
+     * @param g The cell type grid representing the level layout.
+     * @param p The array of placed objects in the environment.
+     * @param controller The game controller overseeing gameplay logic.
+     * @param loadedHero The hero to load, or null to create a new one.
+     */
     public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller, Hero loadedHero) {
-        // Add these lines near the start of the constructor
         setPreferredSize(new Dimension(GRID_COLS * cellSize, GRID_ROWS * cellSize));
-        setBorder(null);  // Remove any border
+        setBorder(null); // Remove any border
         setLayout(null);
         this.grid = g;
         this.placedObjects = p;
@@ -164,9 +174,6 @@ public class GamePanel extends JPanel {
 
         // Create inventory
         this.inventory = new Inventory();
-
-        // Rest of your initialization...
-        // (keep all the other initialization code the same)
 
         hideRuneInRandomObject();
         loadDoorImage();
@@ -226,7 +233,7 @@ public class GamePanel extends JPanel {
                 PlacedObject obj = getClickedObject(mx, my);
                 if (obj != null && obj.hasRune) {
                     obj.runeVisible = true;
-                    gameController.gameState.setRuneFound(true);  // Set the flag when rune is found
+                    gameController.gameState.setRuneFound(true); // Set the flag when rune is found
                     System.out.println("Rune discovered!");
                     SoundPlayer.playSound("/resources/sounds/door_open.wav");
                 }
@@ -234,14 +241,22 @@ public class GamePanel extends JPanel {
         });
     }
 
-    // Add the overloaded constructor
+    /**
+     * Constructs a new GamePanel with a fresh hero.
+     * @param g The cell type grid representing the level layout.
+     * @param p The array of placed objects in the environment.
+     * @param controller The game controller overseeing gameplay logic.
+     */
     public GamePanel(BuildModePanel.CellType[][] g, PlacedObject[][] p, GameController controller) {
         this(g, p, controller, null);
     }
 
+    /**
+     * Loads the custom game font from resources, or falls back to a default font if unavailable.
+     */
     private void loadGameFont() {
         try {
-            // Load a custom pixel/game font - you'll need to add this to your resources
+            // Load a custom pixel/game font
             gameFont = Font.createFont(Font.TRUETYPE_FONT,
                     getClass().getResourceAsStream("/fonts/pixel.ttf")).deriveFont(24f);
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -252,6 +267,9 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Loads the luring gem image resource from the game's asset paths.
+     */
     private void loadLuringGemImage() {
         try {
             URL url = getClass().getClassLoader().getResource(AssetPaths.LURING_ENCH.substring(1));
@@ -262,22 +280,27 @@ public class GamePanel extends JPanel {
             luringGemImage = null;
         }
     }
+
     /**
-     * Triggers game over screen.
+     * Activates the game-over state and displays the respective screen.
      */
     public void triggerGameOver() {
         gameOver = true;
         SwingUtilities.invokeLater(this::repaint);
     }
 
+    /**
+     * Processes the logic for throwing the luring gem based on user input.
+     * @param e The key event containing user input.
+     */
     private void handleLuringGem(KeyEvent e) {
         if (waitingForDirection) {
             int dx = 0, dy = 0;
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_A: dx = -cellSize * 3; break;
-                case KeyEvent.VK_D: dx = cellSize * 3;  break;
+                case KeyEvent.VK_D: dx = cellSize * 3; break;
                 case KeyEvent.VK_W: dy = -cellSize * 3; break;
-                case KeyEvent.VK_S: dy = cellSize * 3;  break;
+                case KeyEvent.VK_S: dy = cellSize * 3; break;
                 default: return;
             }
 
@@ -343,16 +366,17 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Handle arrow-key or WASD movement.
+     * Handles the hero's movement in response to arrow or WASD key presses.
+     * @param e The key event containing user input.
      */
     private void handleMovementKeys(KeyEvent e) {
         int step = cellSize;
         int dx = 0, dy = 0;
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:  dx = -step; break;
-            case KeyEvent.VK_RIGHT: dx =  step; break;
-            case KeyEvent.VK_UP:    dy = -step; break;
-            case KeyEvent.VK_DOWN:  dy =  step; break;
+            case KeyEvent.VK_LEFT: dx = -step; break;
+            case KeyEvent.VK_RIGHT: dx = step; break;
+            case KeyEvent.VK_UP: dy = -step; break;
+            case KeyEvent.VK_DOWN: dy = step; break;
         }
         if (dx != 0 || dy != 0) {
             int oldX = hero.getX();
@@ -369,16 +393,20 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // In GamePanel.java
+    /**
+     * Determines if the hero can move to the specified pixel coordinates.
+     * @param px The x-coordinate in pixels.
+     * @param py The y-coordinate in pixels.
+     * @return True if the hero can move to the specified position, false otherwise.
+     */
     public boolean canHeroMovePixel(int px, int py) {
         Point p = new Point(px, py);
-        return canHeroMove(p);  // or whatever your existing logic is
+        return canHeroMove(p);
     }
 
     /**
-     * Handle usage of enchantments:
-     *  - 'R' for Reveal
-     *  - 'P' for Cloak
+     * Handles the usage of enchantments when certain keys (R, P, B) are pressed.
+     * @param e The key event containing user input.
      */
     private void handleEnchantmentKeys(KeyEvent e) {
         if (hero == null || hero.getInventory() == null) {
@@ -435,6 +463,11 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Returns the index of the specified enchantment type, or -1 if not found.
+     * @param type The enchantment type to locate in the hero's inventory.
+     * @return The index of the enchantment or -1 if not found.
+     */
     private int findEnchantmentIndex(EnchantmentType type) {
         if (hero == null || hero.getInventory() == null) {
             System.out.println("No inventory available!");
@@ -459,7 +492,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Picks a 4×4 region that definitely contains the current rune-holding object (if any).
+     * Selects a 4x4 region on the grid that contains the object hiding the rune.
      */
     private void pickRevealRegion() {
         PlacedObject target = null;
@@ -499,7 +532,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Spawns new enchantments every 12s.
+     * Initializes and schedules a timer to spawn enchantments periodically.
      */
     private void startEnchantmentSpawner() {
         enchantmentSpawnTimer = new Timer(true);
@@ -517,7 +550,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Spawns a random enchantment on a floor cell. (Tries up to 50 times.)
+     * Spawns a random enchantment on a valid floor cell within the grid.
      */
     private void spawnRandomEnchantment() {
         int tries = 0;
@@ -541,7 +574,10 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Checks if the user clicked on an enchantment.
+     * Determines which enchantment, if any, was clicked based on the given mouse coordinates.
+     * @param mx The x-coordinate of the mouse click.
+     * @param my The y-coordinate of the mouse click.
+     * @return The clicked Enchantment, or null if none was clicked.
      */
     private Enchantment getClickedEnchantment(int mx, int my) {
         for (Enchantment e : enchantments) {
@@ -557,8 +593,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Collect the enchantment: +1 life if EXTRALIFE, +5 seconds if EXTRATIME, or store in inventory otherwise.
-     * Also syncs new time with gameController if EXTRATIME.
+     * Collects the specified enchantment, applying its effects to the hero or inventory.
+     * @param ench The enchantment to be collected.
      */
     private void collectEnchantment(Enchantment ench) {
         switch (ench.getType()) {
@@ -586,14 +622,14 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Removes any enchantments older than 6s.
+     * Removes enchantments from the game that have exceeded their lifespan.
      */
     private void checkEnchantmentExpiry() {
         enchantments.removeIf(Enchantment::isExpired);
     }
 
     /**
-     * Spawns monsters every 8s.
+     * Initializes and schedules a timer to spawn monsters periodically.
      */
     private void startMonsterSpawner() {
         monsterSpawnerTimer = new Timer(true);
@@ -612,7 +648,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Move monsters every 0.5s, also remove expired enchantments.
+     * Initializes and schedules a timer to update monster movements and handle collisions.
      */
     private void startMonsterMovement() {
         monsterMovementTimer = new Timer(true);
@@ -636,7 +672,6 @@ public class GamePanel extends JPanel {
 
                         monsters.removeAll(monstersToRemove);
 
-                        // We must call checkHealthCondition() in the Swing thread
                         SwingUtilities.invokeLater(() -> checkHealthCondition());
                     });
                 }
@@ -648,7 +683,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Attempt to spawn a monster in a random valid location.
+     * Attempts to create and place a new monster at a valid random location on the grid.
      */
     private void spawnMonster() {
         int tries = 0;
@@ -676,7 +711,11 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Whether a monster can move/spawn at (nx, ny).
+     * Determines if a monster can occupy the specified grid location.
+     * @param monster The monster attempting to move.
+     * @param nx The x-coordinate in pixels.
+     * @param ny The y-coordinate in pixels.
+     * @return True if the monster can move to the location, false otherwise.
      */
     public boolean canMonsterMove(Monster monster, int nx, int ny) {
         int c = nx / cellSize;
@@ -710,7 +749,9 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Whether the hero can move to p.
+     * Determines if the hero can move to the specified point within the grid.
+     * @param p The point representing a possible hero position.
+     * @return True if the hero can occupy that position, false otherwise.
      */
     public boolean canHeroMove(Point p) {
         int c = p.x / cellSize;
@@ -729,6 +770,12 @@ public class GamePanel extends JPanel {
         return true;
     }
 
+    /**
+     * Identifies which placed object, if any, was clicked at the specified mouse coordinates.
+     * @param mx The x-coordinate of the mouse click.
+     * @param my The y-coordinate of the mouse click.
+     * @return The PlacedObject that was clicked, or null if none was found or hero is not in range.
+     */
     private PlacedObject getClickedObject(int mx, int my) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
@@ -748,7 +795,7 @@ public class GamePanel extends JPanel {
                         if (Math.abs(heroGridX - c) <= 1 && Math.abs(heroGridY - r) <= 1) {
                             return obj;
                         }
-                        return null;  // Object found but hero not in range
+                        return null; // Object found but hero not in range
                     }
                 }
             }
@@ -757,12 +804,12 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Teleport the rune if wizard monster triggers it.
+     * Randomly relocates the rune to a different object, if it has not yet been found by the hero.
      */
     public void teleportRuneRandomly() {
         // First check if the rune has been found
         if (gameController.gameState.isRuneFound()) {
-            return;  // Don't move the rune if it's been found
+            return; // Don't move the rune if it's been found
         }
 
         if (gameOver) return;
@@ -796,7 +843,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Called to see if hero is next to the door with the rune to escape.
+     * Checks if the hero is positioned to escape through the door when the rune is revealed.
      */
     private void checkDoorCondition() {
         int hr = hero.getY() / cellSize;
@@ -815,7 +862,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Does hero already have a revealed rune?
+     * Determines whether the hero has discovered the rune on any placed object.
+     * @return True if a revealed rune is found, false otherwise.
      */
     private boolean heroHasRune() {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -829,6 +877,10 @@ public class GamePanel extends JPanel {
         return false;
     }
 
+    /**
+     * Renders the entire game scene, including the hero, monsters, objects, enchantments, and UI elements.
+     * @param g The Graphics context used for drawing.
+     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -1000,7 +1052,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draw a 4×4 green rectangle for reveal effect.
+     * Draws a highlighted area to indicate the region revealed by the Reveal enchantment.
+     * @param g The Graphics context used for drawing.
      */
     private void drawRevealHighlight(Graphics g) {
         if (!revealActive) return;
@@ -1018,8 +1071,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Archer-monster coverage.
-     * If cloak is active, archer effectively does NOT see the hero (skip BFS coverage).
+     * Illustrates the range of archers with a highlighted zone, unless the cloak is active.
+     * @param g The Graphics context used for drawing.
      */
     private void highlightArcherZones(Graphics g) {
         // If cloak is active, skip BFS coverage entirely so archers can't see the hero
@@ -1073,13 +1126,14 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draw unlimited hearts = hero's current health.
+     * Displays the hero's current health by drawing heart icons.
+     * @param g The Graphics context used for drawing.
      */
     private void drawHearts(Graphics g) {
         if (heartImage != null) {
             int heartWidth = 60;
             int heartHeight = 60;
-            int bottomMargin = 0;  // Increased from 40 to 60
+            int bottomMargin = 0;
             int startY = (GRID_ROWS * cellSize) - heartHeight - bottomMargin;
 
             for (int i = 0; i < hero.getHealth(); i++) {
@@ -1090,7 +1144,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Checks if the hero's health has dropped to 0; triggers hero death if so.
+     * Monitors the hero's health and initiates the hero's death sequence if it reaches zero.
      */
     private void checkHealthCondition() {
         if (hero.getHealth() <= 0 && !heroDied && !gameOver) {
@@ -1139,8 +1193,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draws the floor/wall tiles.
-     * @param g the Graphics context
+     * Renders the floor and wall tiles for each cell in the game grid.
+     * @param g The Graphics context used for drawing.
      */
     private void drawBoard(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -1163,7 +1217,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draw faint grid lines (optional).
+     * Optionally draws faint grid lines for debugging or aesthetic purposes.
+     * @param g The Graphics context used for drawing.
      */
     private void drawGridLines(Graphics g) {
         g.setColor(new Color(75, 30, 30, 50));
@@ -1176,7 +1231,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draw placed objects such as boxes, crates, door, etc.
+     * Renders any placed objects within the grid, including runes if revealed.
+     * @param g The Graphics context used for drawing.
      */
     private void drawPlacedObjects(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -1201,7 +1257,9 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Determine if hero/monster is behind a double-height object.
+     * Checks if the specified entity is visually obscured by a double-height object in the same cell.
+     * @param entity The hero or monster to check.
+     * @return True if covered by a double-height object, false otherwise.
      */
     private boolean isCoveredByObject(Object entity) {
         int ex = (entity instanceof Monster) ? ((Monster) entity).getX() : hero.getX();
@@ -1214,7 +1272,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Draw double-height objects above hero/monsters for that "2.5D" effect.
+     * Renders the upper portion of double-height objects after the hero or monsters have been drawn.
+     * @param g The Graphics context used for drawing.
      */
     private void drawObjectsAboveHero(Graphics g) {
         for (int r = 0; r < GRID_ROWS; r++) {
@@ -1234,7 +1293,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load the died-hero image (mirrored if hero is facing right).
+     * Loads the image representing the hero's death, applying mirroring if needed.
      */
     private void loadDiedHeroImage() {
         try {
@@ -1253,6 +1312,11 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Mirrors the provided image horizontally.
+     * @param original The original image to mirror.
+     * @return A new BufferedImage that is a mirrored version of the original.
+     */
     public BufferedImage mirrorImage(BufferedImage original) {
         AffineTransform transform = AffineTransform.getScaleInstance(-1, 1);
         transform.translate(-original.getWidth(), 0);
@@ -1267,7 +1331,9 @@ public class GamePanel extends JPanel {
         return mirrored;
     }
 
-
+    /**
+     * Spawns an initial set of enchantments, ensuring each type is placed at least once.
+     */
     private void spawnInitialEnchantments() {
         // Spawn one of each type
         for (EnchantmentType type : EnchantmentType.values()) {
@@ -1293,7 +1359,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load door image.
+     * Loads the image resource for the door asset.
      */
     private void loadDoorImage() {
         try {
@@ -1307,7 +1373,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Place door object at (DOOR_ROW, DOOR_COL).
+     * Places the loaded door image as a PlacedObject in the designated door cell.
      */
     private void placeDoorAsObject() {
         if (doorImage != null) {
@@ -1320,6 +1386,11 @@ public class GamePanel extends JPanel {
         }
     }
 
+    /**
+     * Converts a general Image object to a BufferedImage, preserving transparency.
+     * @param img The Image to convert.
+     * @return A BufferedImage version of the provided Image.
+     */
     private BufferedImage toBufferedImage(Image img) {
         if (img instanceof BufferedImage) {
             return (BufferedImage) img;
@@ -1332,7 +1403,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load heart image.
+     * Loads the image resource used for representing the hero's health.
      */
     private void loadHeartImage() {
         try {
@@ -1346,7 +1417,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Hide the rune in a random placed object.
+     * Randomly selects a placed object to conceal the rune.
      */
     private void hideRuneInRandomObject() {
         List<PlacedObject> objs = new ArrayList<>();
@@ -1364,7 +1435,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load game-over image.
+     * Loads the image resource displayed during the game-over sequence.
      */
     private void loadGameOverImage() {
         try {
@@ -1378,7 +1449,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load rune image.
+     * Loads the image asset representing the hidden rune.
      */
     private void loadRuneImage() {
         try {
@@ -1392,7 +1463,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Initialize floor/wall images from sprite sheet.
+     * Extracts floor and wall tile graphics from the main sprite sheet.
      */
     private void initializeFloorWallImages() {
         try {
@@ -1414,7 +1485,8 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Fallback image if sprite loading fails.
+     * Provides a fallback tile image in case sprite loading fails.
+     * @return A simple red square BufferedImage.
      */
     private BufferedImage fallback() {
         BufferedImage f = new BufferedImage(cellSize, cellSize, BufferedImage.TYPE_INT_ARGB);
@@ -1425,18 +1497,34 @@ public class GamePanel extends JPanel {
         return f;
     }
 
+    /**
+     * Retrieves the current grid layout for the game panel.
+     * @return A 2D array representing cell types.
+     */
     public BuildModePanel.CellType[][] getGrid() {
         return grid;
     }
 
+    /**
+     * Obtains the array of placed objects used in the game panel.
+     * @return A 2D array of PlacedObject instances.
+     */
     public BuildModePanel.PlacedObject[][] getPlacedObjects() {
         return placedObjects;
     }
 
+    /**
+     * Returns the list of monsters currently active in the game.
+     * @return A List of Monster objects.
+     */
     public List<Monster> getMonsters() {
         return monsters;
     }
 
+    /**
+     * Reconstructs monsters from a list of saved monster states.
+     * @param monsterStates A list of MonsterState objects containing saved monster data.
+     */
     public void recreateMonsters(List<GameState.MonsterState> monsterStates) {
         monsters.clear();
         for (GameState.MonsterState state : monsterStates) {
@@ -1460,7 +1548,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Load pause/resume/exit images.
+     * Loads the images for the pause, resume, and exit buttons.
      */
     private void initializeButtonImages() {
         try {
@@ -1479,7 +1567,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Create pause button.
+     * Instantiates and configures the pause button component, including its action listener.
      */
     private void createPauseButton() {
         pauseButton = new JButton();
@@ -1521,6 +1609,10 @@ public class GamePanel extends JPanel {
         add(pauseButton);
     }
 
+    /**
+     * Updates the icon displayed on the pause button based on the current pause state.
+     * @param b The button whose icon will be changed.
+     */
     private void updatePauseButtonIcon(JButton b) {
         BufferedImage i = isPaused ? resumeButtonImage : pauseButtonImage;
         if (i != null) {
@@ -1529,7 +1621,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Create exit button.
+     * Instantiates and configures the exit button component, including its action listener.
      */
     private void createExitButton() {
         exitButton = new JButton();
@@ -1550,18 +1642,21 @@ public class GamePanel extends JPanel {
         add(exitButton);
     }
 
+    /**
+     * Instantiates and configures the save button component, including its action listener.
+     */
     private void createSaveButton() {
         saveButton = new JButton("Save");
-        int buttonX = GRID_COLS * cellSize + 120;  // Position from right edge of board
-        int buttonY = 80;  // Vertical position
+        int buttonX = GRID_COLS * cellSize + 120; // Position from right edge of board
+        int buttonY = 80; // Vertical position
         saveButton.setBounds(buttonX, buttonY, 100, 100);
 
         // Set font size bigger
-        saveButton.setFont(Utils.GameFonts.pixelFont.deriveFont(20f));  // Increased from 16f to 24f
+        saveButton.setFont(Utils.GameFonts.pixelFont.deriveFont(20f)); // Increased from 16f to 24f
 
         // Set light blue background
         saveButton.setBackground(new Color(65, 105, 225));
-        saveButton.setForeground(Color.WHITE);  // White text
+        saveButton.setForeground(Color.WHITE); // White text
         saveButton.setFocusPainted(false);
         saveButton.setBorderPainted(false);
         saveButton.setOpaque(true);
@@ -1573,6 +1668,9 @@ public class GamePanel extends JPanel {
         add(saveButton);
     }
 
+    /**
+     * Removes all enchantments from both the game world and the hero's inventory.
+     */
     public void clearEnchantments() {
         this.enchantments.clear();
         if (hero != null && hero.getInventory() != null) {
@@ -1581,7 +1679,7 @@ public class GamePanel extends JPanel {
     }
 
     /**
-     * Hides pause/exit buttons if the game is over or hero died.
+     * Conceals the pause, exit, and save buttons when the game has ended or the hero has died.
      */
     private void hideButtonsIfGameOver() {
         if (pauseButton != null) {
@@ -1595,58 +1693,92 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // ADD THIS GETTER so that ArcherMonster can check if cloak is active
-    // -------------------------------------------------------------------------
+    /**
+     * Indicates whether the cloak of protection is currently active.
+     * @return True if the cloak is active, false otherwise.
+     */
     public boolean isCloakActive() {
         return cloakActive;
     }
 
+    /**
+     * Updates the reference to the hero in this panel.
+     * @param h The new Hero instance.
+     */
     public void setHero(Hero h) {
         this.hero = h;
     }
 
+    /**
+     * Retrieves the time remaining in the game from the GameController.
+     * @return The current time remaining in seconds.
+     */
     public int getTimeRemaining() {
         return gameController.getTimeRemaining();
     }
 
+    /**
+     * Calculates the ratio of current remaining time to the initial starting time.
+     * @return A double value representing the fraction of time left.
+     */
     public double getTimeRatio() {
         int remaining = gameController.getTimeRemaining();
-        int initial = gameController.getStartingTime();  // This should be 45
+        int initial = gameController.getStartingTime(); // This should be 45
 
-        // Add debug prints
         System.out.println("Time values - Remaining: " + remaining + ", Initial: " + initial +
                 ", GameTimer remaining: " + gameController.getGameTimer().getTimeRemaining());
 
         if (initial == 0) return 0.0;
 
-        // Use the GameTimer's actual remaining time instead
         double ratio = (double) gameController.getGameTimer().getTimeRemaining() / initial;
         System.out.println("Calculated ratio: " + ratio);
         return ratio;
     }
 
+    /**
+     * Marks the specified monster for removal from the game.
+     * @param m The monster to remove.
+     */
     public void removeMonster(Monster m) {
-        // Instead of removing immediately, mark the monster for removal
         m.setPendingRemoval(true);
     }
 
+    /**
+     * Retrieves the current Hero instance associated with this game panel.
+     * @return The Hero object.
+     */
     public Hero getHero() {
         return this.hero;
     }
 
+    /**
+     * Returns a snapshot of the enchantments currently present in the world.
+     * @return A new List containing all active enchantments.
+     */
     public List<Enchantment> getEnchantments() {
         return new ArrayList<>(enchantments);
     }
 
+    /**
+     * Sets the current active enchantments in the world to the provided list.
+     * @param loadedEnchantments The list of enchantments to be added.
+     */
     public void setEnchantments(List<Enchantment> loadedEnchantments) {
         this.enchantments = new ArrayList<>(loadedEnchantments);
     }
 
+    /**
+     * Checks whether the luring gem is currently active.
+     * @return True if the luring gem is in use, false otherwise.
+     */
     public boolean isLureActive() {
         return luringGemActive;
     }
 
+    /**
+     * Retrieves the current position of the placed luring gem.
+     * @return A Point representing the lure's coordinates, or null if inactive.
+     */
     public Point getLurePosition() {
         return lurePosition;
     }

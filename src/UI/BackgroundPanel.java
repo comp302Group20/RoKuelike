@@ -9,11 +9,19 @@ import java.awt.*;
 public class BackgroundPanel extends JPanel {
     private Image backgroundImage;
 
+    /**
+     * Constructs a BackgroundPanel with the specified image.
+     * @param backgroundImage the image to use as background
+     */
     public BackgroundPanel(Image backgroundImage) {
         this.backgroundImage = backgroundImage;
         setLayout(new BorderLayout());
     }
 
+    /**
+     * Paints the component by drawing the background image scaled to fill this panel.
+     * @param g the Graphics context for painting
+     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);

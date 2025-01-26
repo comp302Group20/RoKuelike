@@ -13,21 +13,14 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Uses a Swing Timer for short transitions (e.g., 3-second "Completed" screens),
- * but uses Domain.GameTimer for in-game countdown logic.
- */
 public class GameController {
 
     private Hall hall;
     private GamePanel gamePanel;
-    // Use the Domain-specific GameTimer, not java.util.Timer:
     private GameTimer gameTimer;
 
     private int startingTime;
@@ -42,15 +35,12 @@ public class GameController {
     private static final int TIME_PER_OBJECT = 5; // seconds
     private static Inventory persistentInventory = null;
 
-    // Keep track of how many halls have been completed (0 to 4).
     private static int gamesCompleted = 0;
 
-    // This reflects the "current" hall we are building/playing (1-based).
     private int currentHallNumber;
 
     public GameState gameState;
 
-    // Array of the "completed" images to display (1..4)
     private static final String[] COMPLETED_IMAGES = {
             AssetPaths.COMPLETED1,
             AssetPaths.COMPLETED2,
@@ -58,12 +48,12 @@ public class GameController {
             AssetPaths.COMPLETED4
     };
 
-    /**
-     * Minimum objects required for each hall:
-     * 1st hall -> 6, 2nd -> 9, 3rd -> 13, 4th -> 17
-     */
     private static final int[] MIN_OBJECTS = {6, 9, 13, 17};
 
+    /**
+     * Constructs a GameController for the specified hall, initializing fields and inventory tracking.
+     * @param hall the Hall object that this controller manages
+     */
     public GameController(Hall hall) {
         this.hall = hall;
         this.currentHallNumber = gamesCompleted + 1;
@@ -71,24 +61,28 @@ public class GameController {
         this.timeRemaining = 0;
         this.gameState = new GameState();
 
-        // Don't reset persistent inventory if it exists
         if (persistentInventory == null) {
             persistentInventory = new Inventory();
         }
     }
 
+    /**
+     * Retrieves the current domain-level GameTimer used by this controller.
+     * @return the GameTimer instance
+     */
     public GameTimer getGameTimer() {
         return this.gameTimer;
     }
 
     /**
-     * Called after the user presses "Finish Building" in build mode.
-     * We must enforce the min object count before starting the play mode.
+     * Called upon finishing build mode to transition into play mode, given the constructed map and objects.
+     * @param grid the 2D CellType array representing the board layout
+     * @param placedObjects the 2D array of placed objects
+     * @param previousInventory the Inventory carried over from a previous hall, if any
      */
     public void onBuildModeFinished(BuildModePanel.CellType[][] grid,
                                     BuildModePanel.PlacedObject[][] placedObjects,
                                     Inventory previousInventory) {
-        // Count how many objects were placed
         int placedObjectCount = 0;
         for (int r = 0; r < placedObjects.length; r++) {
             for (int c = 0; c < placedObjects[0].length; c++) {
@@ -97,11 +91,8 @@ public class GameController {
                 }
             }
         }
-
-        // Calculate initial time based on number of objects
         timeRemaining = placedObjectCount * TIME_PER_OBJECT;
 
-        // If not enough objects, show a warning and do not proceed
         if (!hall.validateObjectCount(placedObjectCount)) {
             String namehall;
             switch (currentHallNumber) {
@@ -116,21 +107,17 @@ public class GameController {
                     "Not enough objects in " + namehall + "!\n"
                             + "You need at least " + hall.getMinObjectCount() + " objects."
             );
-            return; // Stop -- do not start play mode
+            return;
         }
 
         startingTime = timeRemaining;
-
-        // Start the actual play mode with the previous inventory
         startPlayMode(grid, placedObjects, startingTime, previousInventory);
     }
 
     /**
-     * Returns the proper name for each hall number:
-     * 1 -> Earth Hall
-     * 2 -> Air Hall
-     * 3 -> Water Hall
-     * 4 -> Fire Hall
+     * Generates a descriptive name for the hall based on its number (1-4).
+     * @param hallNumber the numeric index of the hall
+     * @return a descriptive String for the hall
      */
     private String getHallDescriptor(int hallNumber) {
         switch (hallNumber) {
@@ -143,7 +130,9 @@ public class GameController {
     }
 
     /**
-     * For demonstration, simple calculation: totalObjects * 5 seconds each.
+     * Calculates a starting time by multiplying total objects with a base time per object.
+     * @param totalObjects the total number of objects placed in the hall
+     * @return the initial time in seconds for the hero to complete the hall
      */
     private int calculateStartingTime(int totalObjects) {
         int baseTimePerObject = 5;
@@ -151,14 +140,16 @@ public class GameController {
     }
 
     /**
-     * Creates the Play Mode window, initializes the Domain.GameTimer,
-     * and starts the countdown.
+     * Sets up and launches the play mode, creating a new GamePanel and attaching a GameTimer to it.
+     * @param grid the 2D CellType array for the grid
+     * @param placedObjects the 2D array of placed objects
+     * @param startingTime the initial time in seconds
+     * @param previousInventory the Inventory carried over, if any
      */
     private void startPlayMode(BuildModePanel.CellType[][] grid,
                                BuildModePanel.PlacedObject[][] placedObjects,
                                int startingTime,
-                               Inventory previousInventory) {  // Add this parameter
-        // Close any existing window (in case there's one open)
+                               Inventory previousInventory) {
         closeGame();
 
         playModeFrame = new JFrame("Play Mode - " + getHallDescriptor(currentHallNumber));
@@ -166,29 +157,23 @@ public class GameController {
         playModeFrame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         playModeFrame.setLocationRelativeTo(null);
 
-        // Reset hero
         Hero.reset();
         Hero newHero = Hero.getInstance(0, 0, 64, 64);
 
-        // Set the inventory based on whether this is a new game or continuing
         if (gamesCompleted == 0) {
-            // New game - clear inventory
             newHero.getInventory().clearEnchantments();
         } else if (previousInventory != null) {
-            // Continuing game - use previous inventory
             newHero.getInventory().setEnchantments(
                     new ArrayList<>(previousInventory.getCollectedEnchantments())
             );
         }
 
-        // Create new GamePanel with the hero
         gamePanel = new GamePanel(grid, placedObjects, this);
 
         gameTimer = new GameTimer(startingTime);
         gameTimer.start(
                 () -> {
-                    // Update both GamePanel and Controller's time
-                    this.timeRemaining = gameTimer.getTimeRemaining();  // Add this line
+                    this.timeRemaining = gameTimer.getTimeRemaining();
                     gamePanel.updateTime(gameTimer.getTimeRemaining());
                 },
                 () -> gamePanel.triggerGameOver()
@@ -197,38 +182,28 @@ public class GameController {
         playModeFrame.add(gamePanel, BorderLayout.CENTER);
         playModeFrame.setVisible(true);
 
-        // Initialize pause pop-up (for pausing) once the frame is ready
         pausePopup = new PausePopUp(playModeFrame);
     }
 
     /**
-     * Called by GamePanel when the hero escapes successfully.
-     * After each hall, show the "completedN.png" for 3 seconds,
-     * then proceed to the next hall or final screen.
+     * Invoked by the GamePanel when the hero successfully escapes the current hall.
+     * Saves inventory, closes the play mode, increments the completed hall count, and proceeds accordingly.
      */
     public void onHeroEscaped() {
-        // Save the current inventory before closing
         if (gamePanel != null && gamePanel.getHero() != null) {
             persistentInventory = gamePanel.getHero().getInventory();
         }
-
-        // Close the old play mode frame
         if (playModeFrame != null) {
             playModeFrame.dispose();
         }
-
-        // Increment the count of halls completed (1..4)
         gamesCompleted++;
-
-        // Show the corresponding "completed" image for 3 seconds, then move on
         showCompletionScreen();
     }
+
     /**
-     * Displays the correct "completedX.png" image in a window for 3 seconds,
-     * then calls finishOrExit().
+     * Displays a short "completed hall" screen specific to the number of halls finished, then proceeds further.
      */
     private void showCompletionScreen() {
-        // If we've exceeded 4, just skip to final logic
         if (gamesCompleted < 1 || gamesCompleted > 4) {
             finishOrExit();
             return;
@@ -236,8 +211,8 @@ public class GameController {
 
         final JFrame completionFrame = new JFrame("Hall Completed");
         completionFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        completionFrame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Full screen
-        completionFrame.setUndecorated(true); // No borders
+        completionFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        completionFrame.setUndecorated(true);
 
         BufferedImage completionImage = loadImage(COMPLETED_IMAGES[gamesCompleted - 1]);
         ResponsiveImagePanel imagePanel = new ResponsiveImagePanel(
@@ -247,7 +222,6 @@ public class GameController {
         completionFrame.add(imagePanel, BorderLayout.CENTER);
         completionFrame.setVisible(true);
 
-        // Use a Swing Timer to close after 3 seconds
         javax.swing.Timer transitionTimer = new javax.swing.Timer(3000, e -> {
             completionFrame.dispose();
             finishOrExit();
@@ -257,32 +231,27 @@ public class GameController {
     }
 
     /**
-     * After showing completed1-3, proceed to next hall.
-     * After completed4, display "congratulations.png" then exit.
+     * Decides whether to create a new hall (if fewer than 4 completed) or show the "congratulations" screen.
      */
     private void finishOrExit() {
         if (gamesCompleted < 4) {
-            // Get the current inventory before transitioning
-            // Make it final
-            final Inventory currentInventory = gamePanel != null && gamePanel.getHero() != null
+            final Inventory currentInventory = (gamePanel != null && gamePanel.getHero() != null)
                     ? new Inventory()
                     : null;
 
-            // Copy the enchantments if we have a current inventory
             if (currentInventory != null) {
                 currentInventory.setEnchantments(
                         new ArrayList<>(gamePanel.getHero().getInventory().getCollectedEnchantments())
                 );
             }
 
-            // Prepare the next hall with the correct min object count
             int nextMin = MIN_OBJECTS[gamesCompleted];
             String namehall;
             switch (gamesCompleted + 1) {
                 case 1:  namehall = "Hall of Earth";  break;
                 case 2:  namehall = "Hall of Air";    break;
                 case 3:  namehall = "Hall of Water";  break;
-                case 4:  namehall = "Fire Hall";   break;
+                case 4:  namehall = "Fire Hall";      break;
                 default: namehall = "Unknown Hall";
             }
 
@@ -293,10 +262,8 @@ public class GameController {
                     nextMin
             );
 
-            // Create new GameController
             GameController nextController = new GameController(nextHall);
 
-            // Use the final currentInventory in lambda
             SwingUtilities.invokeLater(() -> {
                 new BuildModeController(nextHall, nextController, currentInventory);
             });
@@ -307,7 +274,7 @@ public class GameController {
     }
 
     /**
-     * Displays "congratulations.png" for 3 seconds, then exits.
+     * Displays the final "congratulations" screen after all four halls are completed, then returns to main menu.
      */
     private void showCongratulationsScreen() {
         final JFrame congratsFrame = new JFrame("Congratulations");
@@ -322,7 +289,6 @@ public class GameController {
 
         javax.swing.Timer timer = new javax.swing.Timer(3000, e -> {
             congratsFrame.dispose();
-            // Return to main menu instead of exiting
             SwingUtilities.invokeLater(() -> {
                 JFrame mainMenu = new RokueLikeMainMenu();
                 mainMenu.setVisible(true);
@@ -333,7 +299,9 @@ public class GameController {
     }
 
     /**
-     * Helper method for loading a BufferedImage from a resource path.
+     * Loads an image from the specified resource path.
+     * @param resourcePath the path to the image resource
+     * @return a BufferedImage if loading succeeded, otherwise null
      */
     private BufferedImage loadImage(String resourcePath) {
         BufferedImage image = null;
@@ -350,10 +318,11 @@ public class GameController {
         return image;
     }
 
-    // ---------------------- Timer Pause/Resume ----------------------
+    /**
+     * Pauses the game by halting the GameTimer and showing the pause pop-up window.
+     */
     public void pauseGame() {
         isPaused = true;
-        // Also pause the domain timer
         if (gameTimer != null) {
             gameTimer.pause();
         }
@@ -363,9 +332,11 @@ public class GameController {
         pausePopup.setVisible(true);
     }
 
+    /**
+     * Resumes the game by restarting the GameTimer and hiding the pause pop-up window.
+     */
     public void resumeGame() {
         isPaused = false;
-        // Also resume the domain timer
         if (gameTimer != null) {
             gameTimer.resume();
         }
@@ -374,19 +345,19 @@ public class GameController {
         }
     }
 
+    /**
+     * Saves the current state of the game (hero, grid, monsters, etc.) using the SaveLoadManager.
+     */
     public void saveGame() {
         System.out.println("Saving game...");
         Hero currentHero = gamePanel.getHero();
-
-        // Log the current hero position before saving
         System.out.println("Current hero position before saving: x=" + currentHero.getX() +
                 ", y=" + currentHero.getY());
 
-        // Create new GameState with current game data
         this.gameState = new GameState(
                 gamePanel.getGrid(),
                 gamePanel.getPlacedObjects(),
-                currentHero,  // Pass the current hero instance
+                currentHero,
                 gamePanel.getMonsters(),
                 timeRemaining,
                 hall.getName(),
@@ -394,20 +365,19 @@ public class GameController {
                 currentHero.getInventory()
         );
 
-        // Verify the position was stored correctly in gameState
         System.out.println("Position stored in gameState: x=" +
                 gameState.getHeroPixelPosition().x + ", y=" +
                 gameState.getHeroPixelPosition().y);
 
-        // Save the gameState
         SaveLoadManager.saveGame(this.gameState, findNextSaveName());
     }
 
     /**
-     * Find the next save name "saveX" where X = 1 + max existing integer among saves.
+     * Finds the next available save filename in the format "saveX", where X is an integer that increments from existing saves.
+     * @return the generated save filename without extension
      */
     private String findNextSaveName() {
-        List<String> saves = SaveLoadManager.listSaves(); // e.g. [save1, save2, custom]
+        List<String> saves = SaveLoadManager.listSaves();
         int maxNum = 0;
         for (String s : saves) {
             if (s.matches("save\\d+")) {
@@ -420,62 +390,54 @@ public class GameController {
         return "save" + (maxNum + 1);
     }
 
+    /**
+     * Loads a GameState from the given object and reconstructs the game environment accordingly.
+     * @param gameState the GameState to load
+     */
     public void loadGame(GameState gameState) {
         System.out.println("Loading game...");
         System.out.println("Saved hero position: x=" + gameState.getHeroPixelPosition().x +
                 ", y=" + gameState.getHeroPixelPosition().y);
 
-        // Stop current domain timer if it exists
         if (gameTimer != null) {
             gameTimer.stop();
         }
-        // Close existing window
         if (playModeFrame != null) {
             playModeFrame.dispose();
         }
 
-        // Update the hall
         this.hall = new Hall(gameState.getHallName(), 13, 13, 6);
 
-        // Reset hero instance first
         Hero.reset();
 
-        // Get saved position
         Point savedPos = gameState.getHeroPixelPosition();
         System.out.println("Loading hero at position: " + savedPos.x + "," + savedPos.y);
 
-        // Create hero with exact saved position
         Hero hero = Hero.getInstance(savedPos.x, savedPos.y, 64, 64);
         hero.setHealth(gameState.getHeroHealth());
-
         System.out.println("Hero position after creation: x=" + hero.getX() +
                 ", y=" + hero.getY());
 
-        // Create new playModeFrame
         playModeFrame = new JFrame("Rokue-Like - " + hall.getName());
         playModeFrame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         playModeFrame.setLocationRelativeTo(null);
         playModeFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        // Create new game panel with all saved state
         gamePanel = new GamePanel(
                 gameState.getGrid(),
                 gameState.getPlacedObjects(),
                 this,
-                hero  // Pass the hero instance
+                hero
         );
 
-        // Verify position after GamePanel creation
         System.out.println("Hero position after GamePanel creation: " +
                 hero.getX() + "," + hero.getY());
 
-        // Restore enchantments
         List<Enchantment> loadedFloorEnchantments = gameState.getFloorEnchantments().stream()
                 .map(GameState.EnchantmentState::toEnchantment)
                 .collect(Collectors.toList());
         gamePanel.setEnchantments(loadedFloorEnchantments);
 
-        // Restore inventory
         List<Enchantment> loadedInventoryEnchantments = gameState.getHeroEnchantments().stream()
                 .map(GameState.EnchantmentState::toEnchantment)
                 .collect(Collectors.toList());
@@ -483,55 +445,68 @@ public class GameController {
 
         playModeFrame.add(gamePanel);
 
-        // Set time remaining
         this.timeRemaining = gameState.getTimeRemaining();
         gamePanel.updateTime(timeRemaining);
 
-        // Recreate monsters
         gamePanel.recreateMonsters(gameState.getMonsterStates());
 
-        // Pause popup
         pausePopup = new PausePopUp(playModeFrame);
-
         playModeFrame.setVisible(true);
 
         System.out.println("Final hero position after load: x=" + hero.getX() +
                 ", y=" + hero.getY());
 
-        // Start domain timer again with loaded time
         gameTimer = new GameTimer(timeRemaining);
         gameTimer.start(
                 () -> gamePanel.updateTime(gameTimer.getTimeRemaining()),
                 () -> gamePanel.triggerGameOver()
         );
 
-        // Set the current gameState
         this.gameState = gameState;
     }
 
-    // ---------------------- Utility Methods -------------------------
+    /**
+     * Adds additional time to the hero's remaining countdown, updating both local and domain timer values.
+     * @param seconds the number of seconds to add
+     */
     public void addTime(int seconds) {
-        timeRemaining += seconds;         // Keep our local counter updated
+        timeRemaining += seconds;
         if (gameTimer != null) {
-            gameTimer.addTime(seconds);   // Also add to domain timer
+            gameTimer.addTime(seconds);
         }
         if (gamePanel != null) {
             gamePanel.updateTime(timeRemaining);
         }
     }
 
+    /**
+     * Retrieves the current Hall instance.
+     * @return the Hall being managed by this controller
+     */
     public Hall getHall() {
         return hall;
     }
 
+    /**
+     * Returns the starting time that was set when play mode began.
+     * @return the initial time in seconds
+     */
     public int getStartingTime() {
         return startingTime;
     }
 
+    /**
+     * Returns the amount of time still remaining for the hero.
+     * @return the current time left in seconds
+     */
     public int getTimeRemaining() {
         return timeRemaining;
     }
 
+    /**
+     * Updates the remaining time the hero has, reflecting the change in the UI if needed.
+     * @param time the new time remaining in seconds
+     */
     public void setTimeRemaining(int time) {
         this.timeRemaining = time;
         if (gamePanel != null) {
@@ -539,12 +514,16 @@ public class GameController {
         }
     }
 
+    /**
+     * Checks if the game is currently paused.
+     * @return true if paused, false otherwise
+     */
     public boolean isPaused() {
         return isPaused;
     }
 
     /**
-     * Close the current play mode window (if any), stop the Domain.GameTimer.
+     * Stops the current Domain.GameTimer and closes the play mode window, if open.
      */
     public void closeGame() {
         if (gameTimer != null) {
@@ -555,6 +534,9 @@ public class GameController {
         }
     }
 
+    /**
+     * Closes the current game window and returns to the main menu.
+     */
     public void returnToMainMenu() {
         closeGame();
         SwingUtilities.invokeLater(() -> {
@@ -563,24 +545,37 @@ public class GameController {
         });
     }
 
+    /**
+     * Resets the overall progress (hall completions) and clears any persistent inventory.
+     */
     public static void resetProgress() {
         gamesCompleted = 0;
-        persistentInventory = null;  // Add this line
+        persistentInventory = null;
     }
 
     /**
-     * Custom JPanel that scales the image to fit the panel while maintaining aspect ratio.
+     * A custom JPanel that scales a background image to fit while maintaining its aspect ratio,
+     * or displays fallback text if the image is missing.
      */
     private static class ResponsiveImagePanel extends JPanel {
         private BufferedImage image;
         private String fallbackText;
 
+        /**
+         * Constructs a ResponsiveImagePanel using the specified image and fallback text.
+         * @param image the BufferedImage to display
+         * @param fallbackText the text to display if the image is null
+         */
         public ResponsiveImagePanel(BufferedImage image, String fallbackText) {
             this.image = image;
             this.fallbackText = fallbackText;
-            this.setBackground(Color.BLACK); // Optional
+            this.setBackground(Color.BLACK);
         }
 
+        /**
+         * Renders the image (if available) centered and scaled within the panel; otherwise, shows fallback text.
+         * @param g the Graphics context for drawing
+         */
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -600,7 +595,6 @@ public class GameController {
                     drawHeight = (int) (drawWidth / imageAspect);
                 }
 
-                // Center
                 int x = (panelWidth - drawWidth) / 2;
                 int y = (panelHeight - drawHeight) / 2;
                 g.drawImage(image, x, y, drawWidth, drawHeight, this);

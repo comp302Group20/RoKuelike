@@ -11,6 +11,9 @@ import java.awt.event.*;
 import java.io.File;
 import java.util.List;
 
+/**
+ * A dialog that displays a list of saved games and allows loading of a selected save.
+ */
 public class LoadGameDialog extends JDialog {
     private JList<String> savesList;
     private DefaultListModel<String> listModel;
@@ -22,6 +25,10 @@ public class LoadGameDialog extends JDialog {
     private static final int BUTTON_HEIGHT = 30;
     private static final int BORDER_SIZE = 20;
 
+    /**
+     * Constructs a modal LoadGameDialog with the given parent frame as owner.
+     * @param owner the parent frame for this dialog
+     */
     public LoadGameDialog(Frame owner) {
         super(owner, "Load Game", true);
         initializeUI();
@@ -29,31 +36,29 @@ public class LoadGameDialog extends JDialog {
         setLocationRelativeTo(owner);
     }
 
+    /**
+     * Sets up the UI components, including the list of saved games and the load/cancel buttons.
+     */
     private void initializeUI() {
         setSize(DIALOG_WIDTH, DIALOG_HEIGHT);
         setResizable(false);
 
-        // Main panel with border layout
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(BORDER_SIZE, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE));
 
-        // Title label
         JLabel titleLabel = new JLabel("Select a saved game", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
         mainPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // List model and JList
         listModel = new DefaultListModel<>();
         savesList = new JList<>(listModel);
         savesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         savesList.setFont(new Font("Arial", Font.PLAIN, 14));
 
-        // Add selection listener to enable/disable load button
         savesList.addListSelectionListener(e -> {
             loadButton.setEnabled(savesList.getSelectedValue() != null);
         });
 
-        // Add double-click listener
         savesList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -63,21 +68,17 @@ public class LoadGameDialog extends JDialog {
             }
         });
 
-        // Scroll pane for the list
         JScrollPane scrollPane = new JScrollPane(savesList);
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
 
-        // Load button
         loadButton = new JButton("Load");
         loadButton.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-        loadButton.setEnabled(false); // Initially disabled
+        loadButton.setEnabled(false);
         loadButton.addActionListener(e -> loadSelectedGame());
 
-        // Cancel button
         cancelButton = new JButton("Cancel");
         cancelButton.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
         cancelButton.addActionListener(e -> dispose());
@@ -86,20 +87,19 @@ public class LoadGameDialog extends JDialog {
         buttonPanel.add(cancelButton);
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Add main panel to dialog
         add(mainPanel);
 
-        // Handle escape key
         getRootPane().registerKeyboardAction(
                 e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
-
-        // Set default button
         getRootPane().setDefaultButton(loadButton);
     }
 
+    /**
+     * Loads the list of available save files from the SaveLoadManager and populates the JList.
+     */
     private void loadSaves() {
         listModel.clear();
         List<String> saves = SaveLoadManager.listSaves();
@@ -114,12 +114,14 @@ public class LoadGameDialog extends JDialog {
         }
     }
 
+    /**
+     * Loads the game state for the selected save file, then launches the game with that state.
+     */
     private void loadSelectedGame() {
         String selected = savesList.getSelectedValue();
         if (selected != null && !selected.equals("No saved games found")) {
             GameState loadedState = SaveLoadManager.loadGame(selected);
             if (loadedState != null) {
-                // Close all existing game windows
                 Window[] windows = Window.getWindows();
                 for (Window window : windows) {
                     if (window instanceof JFrame &&
@@ -128,13 +130,10 @@ public class LoadGameDialog extends JDialog {
                     }
                 }
 
-                // Create new game controller and load the state
                 GameController gameController = new GameController(
                         new Domain.Hall(loadedState.getHallName(), 13, 13, 6)
                 );
                 gameController.loadGame(loadedState);
-
-                // Close this dialog
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(
@@ -147,17 +146,27 @@ public class LoadGameDialog extends JDialog {
         }
     }
 
+    /**
+     * Refreshes the list of saves to ensure the UI is up to date.
+     */
     private void refreshSavesList() {
         loadSaves();
         savesList.revalidate();
         savesList.repaint();
     }
 
+    /**
+     * Displays the LoadGameDialog, updating the list of saves first.
+     */
     public void showDialog() {
         refreshSavesList();
         setVisible(true);
     }
 
+    /**
+     * Sets this dialog's visibility. When made visible, refreshes the saves list.
+     * @param visible true to make visible, false to hide
+     */
     @Override
     public void setVisible(boolean visible) {
         if (visible) {
