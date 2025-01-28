@@ -51,6 +51,7 @@ public class GameTimerTest {
     public void testPauseResume() throws InterruptedException {
         Runnable onTimeUpdate = () -> updatesCount++;
         Runnable onTimeEnd = () -> timeEnded = true;
+
         timer.start(onTimeUpdate, onTimeEnd);
         timer.pause();
         Thread.sleep(2000);
