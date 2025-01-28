@@ -113,8 +113,14 @@ public class GamePanel extends JPanel {
     private boolean cloakActive = false;
     private long cloakEndTime = 0L;
     private static final long CLOAK_DURATION_MS = 20_000; // 20s in ms
+    
+    public void setCloakActive(boolean cloakActive) {
+		this.cloakActive = cloakActive;
+	}
+    
+    
 
-    // Add these fields to GamePanel class
+	// Add these fields to GamePanel class
     private boolean luringGemActive = false;
     private boolean waitingForDirection = false;
     private Point lurePosition = null;
@@ -175,10 +181,10 @@ public class GamePanel extends JPanel {
         // Create inventory
         this.inventory = new Inventory();
 
-        hideRuneInRandomObject();
+        //hideRuneInRandomObject();
         loadDoorImage();
         loadLuringGemImage();
-        placeDoorAsObject();
+        //placeDoorAsObject();
         loadGameOverImage();
         loadDiedHeroImage();
         loadHeartImage();
@@ -186,7 +192,7 @@ public class GamePanel extends JPanel {
         initializeButtonImages();
         loadRuneImage();
 
-        spawnInitialEnchantments();
+        //spawnInitialEnchantments();
 
         createPauseButton();
         createExitButton();

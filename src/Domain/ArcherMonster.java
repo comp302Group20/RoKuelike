@@ -35,7 +35,7 @@ public class ArcherMonster extends Monster implements Serializable {
      */
     public ArcherMonster(int sx, int sy, Hero h, BuildModePanel.CellType[][] mg, GamePanel gp) {
         super(sx, sy, AssetPaths.ARCHER, h, mg);
-        lastShot = System.currentTimeMillis();
+        setLastShot(System.currentTimeMillis());
         gamePanel = gp;
         activeArrows = new ArrayList<>();
         stuckArrows = new ArrayList<>();
@@ -46,6 +46,21 @@ public class ArcherMonster extends Monster implements Serializable {
      */
     @Override
     public void update() {
+    	/*
+    	 * Requires: an archer object that has been initialized (is not null) with a non-null game panel
+    	 * 
+    	 * Modifies:
+    	 * 		-if cloak is not active, enough time has passes since the last arrow was shot, and hero is close enough, shoots an arrow 
+    	 * 		(which adds an arrow to the list of active arrows) and sets the time of last shot to now.
+    	 * 
+    	 * Effects:
+    	 * 		-if cloak is not active, enough time has passes since the last arrow was shot, and hero is close enough, shoots an arrow 
+    	 * 		-for every arrow in the list activeArrows:
+    	 * 			updates the arrow
+    	 * 			removes the arrow if it travels more than 4 blocks or it is in an invalid position (like out of the borders of the hall)
+    	 * 			if the arrow hits the hero, decrements hero's hearts by 1, plays hurt sound, and removes the arrow
+    	 * 
+    	 */
         updateFacingDirection();
 
         if (gamePanel != null && gamePanel.isCloakActive()) {
@@ -54,7 +69,7 @@ public class ArcherMonster extends Monster implements Serializable {
         }
 
         long now = System.currentTimeMillis();
-        if (now - lastShot >= SHOOT_DELAY) {
+        if (now - getLastShot() >= SHOOT_DELAY) {
             int mr = y / CELL_SIZE;
             int mc = x / CELL_SIZE;
             int hr = hero.getY() / CELL_SIZE;
@@ -63,7 +78,7 @@ public class ArcherMonster extends Monster implements Serializable {
 
             if (distance <= 3 && distance != 2 * Math.sqrt(2)) {
                 shootArrow();
-                lastShot = now;
+                setLastShot(now);
             }
         }
 
@@ -250,4 +265,16 @@ public class ArcherMonster extends Monster implements Serializable {
         in.defaultReadObject();
         activeArrows = new ArrayList<>();
     }
+
+	public long getLastShot() {
+		return lastShot;
+	}
+
+	public void setLastShot(long lastShot) {
+		this.lastShot = lastShot;
+	}
+
+	public static int getShootDelay() {
+		return SHOOT_DELAY;
+	}
 }
