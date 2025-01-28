@@ -552,7 +552,7 @@ public class GamePanel extends JPanel {
     /**
      * Spawns a random enchantment on a valid floor cell within the grid.
      */
-    private void spawnRandomEnchantment() {
+    public void spawnRandomEnchantment() {
         int tries = 0;
         while (tries < 50) {
             int r = 2 + random.nextInt(10);
@@ -776,7 +776,7 @@ public class GamePanel extends JPanel {
      * @param my The y-coordinate of the mouse click.
      * @return The PlacedObject that was clicked, or null if none was found or hero is not in range.
      */
-    private PlacedObject getClickedObject(int mx, int my) {
+    PlacedObject getClickedObject(int mx, int my) {
         for (int r = 0; r < GRID_ROWS; r++) {
             for (int c = 0; c < GRID_COLS; c++) {
                 PlacedObject obj = placedObjects[r][c];
